@@ -6,7 +6,8 @@
 - [x] Koin DI Implementation (CommonMain).
 
 ## Phase 1: Data & Networking 🛰️
-- [ ] Domain Models & Repository Interface.
+- [x] Domain Models & Repository Interface.
+- [x] Network Infrastructure (Ktor & Serialization).
 - [ ] Ktor WebSocket Service (Postman Echo).
 - [ ] 2s interval price generation logic.
 

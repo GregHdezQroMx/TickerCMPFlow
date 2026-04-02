@@ -3,7 +3,7 @@
 ## Phase 0: Foundation ✅
 - [x] Multiplatform Project Scaffolding (CMP).
 - [x] Version Catalogs (libs.versions.toml).
-- [ ] Koin DI Implementation (CommonMain).
+- [x] Koin DI Implementation (CommonMain).
 
 ## Phase 1: Data & Networking 🛰️
 - [ ] Domain Models & Repository Interface.

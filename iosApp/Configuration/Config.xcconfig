@@ -1,0 +1,7 @@
+TEAM_ID=
+
+PRODUCT_NAME=TickerCMPFlow
+PRODUCT_BUNDLE_IDENTIFIER=com.jght.business.stockmarket.ticker_cmp_flow.TickerCMPFlow$(TEAM_ID)
+
+CURRENT_PROJECT_VERSION=1
+MARKETING_VERSION=1.0

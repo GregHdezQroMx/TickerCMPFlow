@@ -1,0 +1,41 @@
+# General IDE & System
+.idea/
+*.iml
+.DS_Store
+.kotlin/
+.gradle/
+build/
+**/build/
+captures/
+local.properties
+
+# Android Specific
+*.keystore
+!debug.keystore
+.externalNativeBuild/
+.cxx/
+/captures/
+*.apk
+*.aar
+
+# Kotlin Multiplatform / Multi-OS Engine
+.konan/
+
+# iOS (Xcode) - Refined
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+!*.xcodeproj/project.xcworkspace/
+!*.xcworkspace/contents.xcworkspacedata
+**/xcshareddata/WorkspaceSettings.xcsettings
+.apple_desktop
+DerivedData/
+*.moved-aside
+*.xcuserstate
+
+# Logs & Temporary
+*.log
+/tmp/
+
+# Node (If using Compose Web/KMP JS in the future)
+node_modules/

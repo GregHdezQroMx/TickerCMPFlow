@@ -1,4 +1,4 @@
-package com.jght.business.stockmarket.ticker_cmp_flow.domain.model
+package domain.model
 
 import kotlinx.serialization.Serializable
 

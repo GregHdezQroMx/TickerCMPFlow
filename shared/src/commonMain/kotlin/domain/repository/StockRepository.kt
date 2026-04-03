@@ -1,6 +1,6 @@
-package com.jght.business.stockmarket.ticker_cmp_flow.domain.repository
+package domain.repository
 
-import com.jght.business.stockmarket.ticker_cmp_flow.domain.model.StockTick
+import domain.model.StockTick
 import kotlinx.coroutines.flow.Flow
 
 interface StockRepository {

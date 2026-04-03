@@ -1,0 +1,5 @@
+<resources>
+    <string name="ws_host">ws.postman-echo.com</string>
+    <string name="ws_path">/raw</string>
+    <string name="symbols_list">AAPL,GOOGL,MSFT,AMZN,TSLA,META,NVDA,NFLX,PYPL,BABA,DIS,V,BTC,ETH,BNB,SOL,ADA,DOT,MATIC,LINK,AVAX,LTC,GOLD,SILVER,OIL</string>
+</resources>

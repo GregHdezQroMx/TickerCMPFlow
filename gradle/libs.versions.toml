@@ -16,6 +16,8 @@ material3 = "1.10.0-alpha05"
 koin = "4.0.0"
 ktor = "3.0.0"
 kotlinxSerialization = "1.7.3"
+compose-plugin = "1.7.0"
+napier = "2.7.1"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -55,6 +57,9 @@ ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx
 # Kotlinx Serialization
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 
+# Napier Logging
+napier = { module = "io.github.aakira:napier", version.ref = "napier" }
+
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
 androidLibrary = { id = "com.android.library", version.ref = "agp" }
@@ -63,3 +68,5 @@ composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "k
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 # Essential for @Serializable annotation support
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+# Plugin required to enable composeResources in the shared module
+jetbrainsCompose = { id = "org.jetbrains.compose", version.ref = "compose-plugin" }

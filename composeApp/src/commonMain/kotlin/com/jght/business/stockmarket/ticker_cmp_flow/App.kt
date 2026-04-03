@@ -1,49 +1,37 @@
 package com.jght.business.stockmarket.ticker_cmp_flow
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.safeContentPadding
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import org.jetbrains.compose.resources.painterResource
-
-import tickercmpflow.composeapp.generated.resources.Res
-import tickercmpflow.composeapp.generated.resources.compose_multiplatform
+import domain.repository.StockRepository
+import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.koinInject
+import org.koin.core.parameter.parametersOf
+import tickercmpflow.shared.generated.resources.Res
+import tickercmpflow.shared.generated.resources.*
 
 @Composable
-@Preview
 fun App() {
+    val host = stringResource(Res.string.ws_host)
+    val path = stringResource(Res.string.ws_path)
+    val symbolsRaw = stringResource(Res.string.symbols_list)
+    val symbols = remember(symbolsRaw) { symbolsRaw.split(",") }
+
+    // Injecting the Repository from the :shared module (ANTI-PATTERN) BUT WILL BE REMOVED IN THE FUTURE
+    val repository = koinInject<StockRepository> { parametersOf(host, path) }
+
+    LaunchedEffect(Unit) {
+        // This starts the 2-second interval Echo in the background
+        repository.pushSymbols(symbols)
+    }
+
     MaterialTheme {
-        var showContent by remember { mutableStateOf(false) }
-        Column(
-            modifier = Modifier
-                .background(MaterialTheme.colorScheme.primaryContainer)
-                .safeContentPadding()
-                .fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Button(onClick = { showContent = !showContent }) {
-                Text("Click me!")
-            }
-            AnimatedVisibility(showContent) {
-                val greeting = remember { Greeting().greet() }
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Image(painterResource(Res.drawable.compose_multiplatform), null)
-                    Text("Compose: $greeting")
-                }
-            }
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("Phase 1: WebSocket Active. Check Logcat.")
         }
     }
 }

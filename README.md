@@ -1,15 +1,17 @@
-# TickerCMPFlow 📈
+## 🚀 Phase 1: Infrastructure & WebSocket Smoke Test
 
-**TickerCMPFlow** is a high-performance, real-time stock price tracker built using **Compose Multiplatform (CMP)**. While the primary requirement targets Android, this architecture ensures business logic and UI are shared across platforms, demonstrating a scalable, production-ready approach.
+The core networking and dependency injection layers are now operational.
 
-## 🚀 Core Tech Stack
-- **Compose Multiplatform:** Shared UI for Android & iOS.
-- **Kotlin Coroutines & Flow:** Reactive data streams for real-time updates.
-- **Koin:** Dependency Injection optimized for KMP and MVVM.
-- **Ktor Client:** Multiplatform WebSocket & HTTP engine.
-- **MVVM Architecture:** Clean separation of concerns with immutable StateFlow.
+### How to Test
+1. **Target**: Run the `composeApp` on an Android Emulator or Physical Device (API 24+).
+2. **Connectivity**: Ensure the device has internet access (WSS required).
+3. **Observation**: Open **Logcat** in Android Studio.
 
-## 🛠️ Setup & Execution
-1. Clone the repository.
-2. Open in **Android Studio Ladybug** (or later).
-3. Run the `composeApp` module on an Android Emulator/Device.
+### Expected Output (Logcat)
+Filter by tag `StockRepo` to see the real-time communication:
+
+- **Connection**: `D/StockRepo: WSS Session Established: ws.postman-echo.com`
+- **Data Out**: `D/StockRepo: ⬆️ Sent WSS: [Symbol],[RandomPrice],[RandomChange]|...`
+- **Echo In**: `D/StockRepo: ⬇️ Received Echo: [Symbol],[RandomPrice],[RandomChange]|...`
+
+*Note: The data is currently being emulated by the repository and echoed back by the server to validate the full-duplex secure tunnel.*

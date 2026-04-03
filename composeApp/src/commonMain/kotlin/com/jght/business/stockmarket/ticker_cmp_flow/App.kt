@@ -1,41 +1,33 @@
 package com.jght.business.stockmarket.ticker_cmp_flow
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import domain.repository.StockRepository
 import org.jetbrains.compose.resources.stringResource
-import org.koin.compose.koinInject
-import org.koin.core.parameter.parametersOf
+import org.koin.compose.viewmodel.koinViewModel
+import presentation.theme.TickerCMPFlowTheme
 import tickercmpflow.shared.generated.resources.Res
 import tickercmpflow.shared.generated.resources.symbols_list
-import tickercmpflow.shared.generated.resources.ws_host
-import tickercmpflow.shared.generated.resources.ws_path
+import presentation.viewmodel.StockViewModel
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 
 @Composable
 fun App() {
-    val host = stringResource(Res.string.ws_host)
-    val path = stringResource(Res.string.ws_path)
-    val symbolsRaw = stringResource(Res.string.symbols_list)
-    val symbols = remember(symbolsRaw) { symbolsRaw.split(",") }
+    // 1. Aplicamos nuestro Design System OLED (Fintech Style)
+    TickerCMPFlowTheme {
+        
+        // 2. Obtenemos los símbolos desde los recursos compartidos
+        val symbolsRaw = stringResource(Res.string.symbols_list)
+        val symbols = remember(symbolsRaw) { symbolsRaw.split(",").map { it.trim() } }
 
-    // Injecting the Repository from the :shared module (ANTI-PATTERN) BUT WILL BE REMOVED IN THE FUTURE
-    val repository = koinInject<StockRepository> { parametersOf(host, path) }
+        // 3. Inyectamos el ViewModel de forma limpia (Sin parámetros manuales)
+        val viewModel = koinViewModel<StockViewModel>()
 
-    LaunchedEffect(Unit) {
-        // This starts the 2-second interval Echo in the background
-        repository.pushSymbols(symbols)
-    }
-
-    MaterialTheme {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("Phase 1: WebSocket Active. Check Logcat.")
+        // 4. Iniciamos el tracking automáticamente al abrir la App (Requerimiento)
+        LaunchedEffect(Unit) {
+            viewModel.toggleTracking(symbols)
         }
+
+        // TODO: Implementar NavHost con Navigation 2.8.x aquí
+        // Por ahora, solo tenemos la estructura base lista.
     }
 }

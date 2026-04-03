@@ -4,7 +4,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import domain.repository.StockRepository
@@ -12,7 +14,9 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
 import tickercmpflow.shared.generated.resources.Res
-import tickercmpflow.shared.generated.resources.*
+import tickercmpflow.shared.generated.resources.symbols_list
+import tickercmpflow.shared.generated.resources.ws_host
+import tickercmpflow.shared.generated.resources.ws_path
 
 @Composable
 fun App() {

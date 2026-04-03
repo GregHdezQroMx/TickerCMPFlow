@@ -24,6 +24,9 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlin.random.Random
 
+private const val TAG = "StockRepo"
+private const val PUSH_DELAY_MS = 2000L
+
 class StockRepositoryImpl(
     private val client: HttpClient,
     private val json: Json,
@@ -50,12 +53,12 @@ class StockRepositoryImpl(
                             "$symbol,$price,$change"
                         }
                         send(Frame.Text(mockData))
-                        delay(2000)
+                        delay(PUSH_DELAY_MS)
                     }
                     receiverJob.cancel()
                 }
             } catch (e: Exception) {
-                Napier.e(tag = "StockRepo") { "WSS Error: ${e.message}" }
+                Napier.e(tag = TAG) { "WSS Error: ${e.message}" }
             } finally {
                 session = null
             }
@@ -72,20 +75,19 @@ class StockRepositoryImpl(
                     _stockTicks.update { ticks }
 
                     ticks.forEach { tick ->
-                        Napier.d(tag = "StockRepo") {
+                        Napier.d(tag = TAG) {
                             "📈 TICK -> Symbol: ${tick.symbol} | Price: ${tick.price} | %: ${tick.changePercentage} | TS: ${tick.timestamp}"
                         }
                     }
 
-                    Napier.v(tag = "StockRepo") { "✅ Batch of ${ticks.size} processed and emitted to Flow" }
+                    Napier.v(tag = TAG) { "✅ Batch of ${ticks.size} processed and emitted to Flow" }
                 }
             }
         } catch (e: Exception) {
-            // 💡 Usa esto para ver el nombre de la clase, no solo el mensaje
-            Napier.e(tag = "StockRepo") { "Receiver Closed: ${e::class.simpleName} - ${e.message}" }
+            Napier.e(tag = TAG) { "Receiver Closed: ${e::class.simpleName} - ${e.message}" }
 
             if (e is kotlinx.coroutines.channels.ClosedReceiveChannelException) {
-                Napier.w(tag = "StockRepo") { "Server closed the connection normally." }
+                Napier.w(tag = TAG) { "Server closed the connection normally." }
             }
         }
     }

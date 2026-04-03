@@ -5,39 +5,36 @@
 - [x] Version Catalogs (libs.versions.toml).
 - [x] Koin DI Implementation (CommonMain).
 
-## Phase 1: Data & Networking 🛰️ ✅
-- [x] Domain Models & Repository Interface.
-- [x] Network Infrastructure (Ktor & Serialization).
-- [x] **Platform-specific Logging**: Napier integration with `DebugAntilog` (androidMain).
-- [x] **Secure WebSocket Service**: Ktor `wss` implementation for Postman Echo.
-- [x] **Interval Generation**: 2s loop logic with random price/change emulation.
-- [x] **Infra-UI Decoupling**: Centralized `KoinInitializer` (expect/actual) for clean startup.
+## Phase 1: Data & Networking ✅
+- [x] **Ktor Engine**: Configuration for OkHttp (Android) and Darwin (iOS).
+- [x] **WebSocket Infrastructure**: `wss` implementation for real-time streams.
+- [x] **Mock Generator**: 2s loop interval for 25 financial symbols.
 
-## Phase 2: Reactive Navigation & Architecture 📱 🕒
-- [ ] **Stream Parsing**: Transform WSS Echo strings into `List<StockTick>`.
-- [ ] Shared Navigation Graph (Feed <-> Details).
-- [ ] ViewModel implementation with `StateFlow`.
-- [ ] Dependency injection for ViewModels in Shared Module.
+## Phase 2: Reactive Architecture ✅
+- [x] **Domain Models**: `StockTick` with `@Serializable` and millisecond precision.
+- [x] **Stream Parsing**: Mapper implementation using `kotlin.time.Clock`.
+- [x] **Clean Architecture**: `GetStockUpdatesUseCase` with alphabetical sorting logic.
+- [x] **State Management**: `StockViewModel` in `commonMain` using `stateIn`.
+- [x] **Logcat Validation**: Verified 2ms batch processing (25 items/tick).
 
-## Phase 3: Core UI & Real-time Features 📊
-- [ ] **Feed Screen**: Real-time sorted LazyColumn reacting to Repository Flow.
-- [ ] **Detail Screen**: Persistent state via `SavedStateHandle`.
-- [ ] Connection Status & Toggle Feed logic.
+## Phase 3: Core UI & Navigation 📱 🕒 (NEXT)
+- [ ] **Type-Safe Navigation**: implementation of `androidx-navigation` in `shared`.
+- [ ] **Shared Theme**: Material3 setup with custom color schemes for Dark/Light mode.
+- [ ] **Feed Screen**: `LazyColumn` with high-frequency updates and `Modifier.animateItem()`.
+- [ ] **Stock Item**: Visual indicators (Red/Green) based on `changePercentage` delta.
+- [ ] **Detail Screen**: Deep-dive view for a single ticker using Navigation arguments.
 
-## Phase 4: Android Specifics & Deep Linking 🔗
-- [ ] Android Deep Link configuration (`stocks://symbol/{symbol}`).
-- [ ] Light/Dark theme support (Material 3).
-- [ ] Unit Tests for ViewModels & Repository (Mocking WSS).
+## Phase 4: Hardening & Resilience 🛡️
+- [ ] **Connection Management**: Auto-reconnect logic for WebSocket failures.
+- [ ] **Error UI**: Implementation of Empty States, Loading Shimmers, and Error Banners.
+- [ ] **Unit Testing**: 
+    - [ ] `StockMapperTest`: Validating decimal rounding and parsing.
+    - [ ] `StockViewModelTest`: Mocking the UseCase flow.
+- [ ] **Lifecycle Awareness**: Ensuring `WhileSubscribed(5000)` kills the WSS on background.
 
-## Phase 5: Premium UX & Animations ✨
-- [ ] **Shared Element Transitions**: Smooth transition from Feed to Details.
-- [ ] **Price Flash Animations**: High-fidelity color pulses (Green/Red).
-- [ ] **List Animations**: `Modifier.animateItemPlacement()` for sorting updates.
-- [ ] **Lottie/Compose Runtime Animations**: For connection states.
-
----
-
-### 📋 Phase 1 - Verification Notes
-* **Network**: WSS is fully operational and verified via Logcat.
-* **DI**: Koin graph is correctly injecting `baseUrl`, `apiPath`, and `json` into `StockRepositoryImpl`.
-* **Logging**: Infrastructure logs are active on Android without leaking into `MainActivity`.
+## Phase 5: Polish & Performance ⚡
+- [ ] **Image Resources**: Setup `composeResources` for icons and splash screen.
+- [ ] **Performance Audit**: Benchmarking recomposition counts on the LazyColumn.
+- [ ] **Offline Persistence**: (Optional) Room/SQLDelight for last-seen price caching.
+- [ ] *(Optional)* **Builds**: Release APK for Android / XCode config for iOS.
+- [ ] *(Optional)* **CI/CD**: Simple GitHub Action for build verification.

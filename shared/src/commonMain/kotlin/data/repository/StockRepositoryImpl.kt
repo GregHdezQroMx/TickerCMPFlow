@@ -1,5 +1,6 @@
 package com.jght.business.stockmarket.ticker_cmp_flow.data.repository
 
+import data.mapper.toStockTicks
 import domain.model.StockTick
 import domain.repository.StockRepository
 import io.github.aakira.napier.Napier
@@ -8,6 +9,7 @@ import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
 import io.ktor.client.plugins.websocket.wss
 import io.ktor.websocket.Frame
 import io.ktor.websocket.readText
+import io.ktor.websocket.send
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.delay
@@ -15,6 +17,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -36,11 +39,8 @@ class StockRepositoryImpl(
     override suspend fun pushSymbols(symbols: List<String>) {
         withContext(Dispatchers.IO) {
             try {
-                // Using baseUrl and apiPath to match your Koin factory parameters
                 client.wss(host = baseUrl, path = apiPath) {
                     session = this
-                    Napier.d(tag = "StockRepo") { "WSS Session Established: $baseUrl" }
-
                     val receiverJob = launch { receiveEcho() }
 
                     while (isActive) {
@@ -49,16 +49,13 @@ class StockRepositoryImpl(
                             val change = Random.nextDouble(-5.0, 5.0)
                             "$symbol,$price,$change"
                         }
-
                         send(Frame.Text(mockData))
-                        Napier.d(tag = "StockRepo") { "⬆️ Sent WSS: $mockData" }
-
                         delay(2000)
                     }
                     receiverJob.cancel()
                 }
             } catch (e: Exception) {
-                Napier.e(tag = "StockRepo", throwable = e) { "WSS Connection Error" }
+                Napier.e(tag = "StockRepo") { "WSS Error: ${e.message}" }
             } finally {
                 session = null
             }
@@ -69,8 +66,18 @@ class StockRepositoryImpl(
         try {
             session?.incoming?.receiveAsFlow()?.collect { frame ->
                 if (frame is Frame.Text) {
-                    val text = frame.readText()
-                    Napier.d(tag = "StockRepo") { "⬇️ Received Echo: $text" }
+                    val rawText = frame.readText()
+                    val ticks = rawText.toStockTicks()
+
+                    _stockTicks.update { ticks }
+
+                    ticks.forEach { tick ->
+                        Napier.d(tag = "StockRepo") {
+                            "📈 TICK -> Symbol: ${tick.symbol} | Price: ${tick.price} | %: ${tick.changePercentage} | TS: ${tick.timestamp}"
+                        }
+                    }
+
+                    Napier.v(tag = "StockRepo") { "✅ Batch of ${ticks.size} processed and emitted to Flow" }
                 }
             }
         } catch (e: Exception) {

@@ -39,6 +39,8 @@ kotlin {
             dependencies {
                 // Dependency Injection: Koin Core is required for the shared module definitions.
                 implementation(libs.koin.core)
+                implementation(libs.koin.compose)
+                implementation(libs.koin.compose.viewmodel)
 
                 // Networking: Ktor Core and WebSockets for real-time data communication.
                 implementation(libs.ktor.client.core)

@@ -1,17 +1,29 @@
-## 🚀 Phase 1: Infrastructure & WebSocket Smoke Test
+# 📈 TickerCMPFlow (KMP Technical Challenge)
 
-The core networking and dependency injection layers are now operational.
+A real-time stock market ticker built with **Kotlin Multiplatform (KMP)**, **Compose Multiplatform (CMP)**, and **Koin 4.0**. This project demonstrates a reactive architecture from a WebSocket stream to a shared ViewModel.
 
-### How to Test
-1. **Target**: Run the `composeApp` on an Android Emulator or Physical Device (API 24+).
-2. **Connectivity**: Ensure the device has internet access (WSS required).
-3. **Observation**: Open **Logcat** in Android Studio.
+## 🚀 Key Features (Phase 2 Completed)
+- **Unified Architecture**: ViewModels, UseCases, and Repositories live in `commonMain`.
+- **Reactive Data Pipeline**: Ktor WSS stream mapped to `StateFlow` with millisecond precision.
+- **Koin 4.0 DSL**: Dependency injection using the latest `viewModel` and `factoryOf` standards.
+- **Clean Domain**: Decoupled models and alphabetical sorting logic.
 
-### Expected Output (Logcat)
-Filter by tag `StockRepo` to see the real-time communication:
+## 🛠️ Tech Stack
+- **UI**: Compose Multiplatform (1.10.3)
+- **DI**: Koin (4.0.0)
+- **Networking**: Ktor (WebSockets, Serialization)
+- **Logging**: Napier
+- **Time**: Kotlinx-datetime
 
-- **Connection**: `D/StockRepo: WSS Session Established: ws.postman-echo.com`
-- **Data Out**: `D/StockRepo: ⬆️ Sent WSS: [Symbol],[RandomPrice],[RandomChange]|...`
-- **Echo In**: `D/StockRepo: ⬇️ Received Echo: [Symbol],[RandomPrice],[RandomChange]|...`
+## 🧪 Testing & Validation (Logcat Protocol)
 
-*Note: The data is currently being emulated by the repository and echoed back by the server to validate the full-duplex secure tunnel.*
+To verify the data pipeline without a UI yet, filter the Android Studio Logcat by the tag `StockRepo`:
+
+### Expected Output (2s Interval)
+The repository processes batches of 25 symbols. You should see a consistent flow like this:
+
+```text
+22:29:27.547 D 📈 TICK -> Symbol: AAPL | Price: 450.5 | %: -2.51 | TS: 1775190567546
+22:29:27.548 D 📈 TICK -> Symbol: GOOGL | Price: 456.87 | %: -1.94 | TS: 1775190567546
+...
+22:29:27.549 V ✅ Batch of 25 processed and emitted to Flow

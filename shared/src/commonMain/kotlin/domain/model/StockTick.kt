@@ -17,15 +17,4 @@ data class StockTick(
     val timestamp: Long
 )
 
-/**
- * Master list of the 25 required stock and crypto symbols.
- */
-val StockSymbols = listOf(
-    "AAPL", "GOOGL", "MSFT", "AMZN", "TSLA",
-    "META", "NVDA", "NFLX", "PYPL", "BABA",
-    "DIS", "V", "BTC", "ETH", "BNB",
-    "SOL", "ADA", "DOT", "MATIC", "LINK",
-    "AVAX", "LTC", "GOLD", "SILVER", "OIL"
-)
-
 

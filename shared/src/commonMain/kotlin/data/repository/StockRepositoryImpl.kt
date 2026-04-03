@@ -81,7 +81,12 @@ class StockRepositoryImpl(
                 }
             }
         } catch (e: Exception) {
-            Napier.e(tag = "StockRepo") { "Receiver Closed: ${e.message}" }
+            // 💡 Usa esto para ver el nombre de la clase, no solo el mensaje
+            Napier.e(tag = "StockRepo") { "Receiver Closed: ${e::class.simpleName} - ${e.message}" }
+
+            if (e is kotlinx.coroutines.channels.ClosedReceiveChannelException) {
+                Napier.w(tag = "StockRepo") { "Server closed the connection normally." }
+            }
         }
     }
 }

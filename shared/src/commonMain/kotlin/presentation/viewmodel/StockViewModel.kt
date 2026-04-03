@@ -3,30 +3,36 @@ package presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import domain.model.StockTick
-import domain.repository.StockRepository
 import domain.usecase.GetStockUpdatesUseCase
+import domain.usecase.ObserveConnectionStatusUseCase
+import domain.usecase.ToggleStockTrackingUseCase
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+/**
+ * ViewModel for the Feed Screen.
+ * Pure orchestration of UseCases for a scalable Clean Architecture.
+ */
 class StockViewModel(
-    private val repository: StockRepository,
-    private val getStockUpdatesUseCase: GetStockUpdatesUseCase
+    private val getStockUpdatesUseCase: GetStockUpdatesUseCase,
+    private val toggleStockTrackingUseCase: ToggleStockTrackingUseCase,
+    private val observeConnectionStatusUseCase: ObserveConnectionStatusUseCase
 ) : ViewModel() {
 
     /**
-     * Connection status indicator.
+     * Connection status (🟢 Connected / 🔴 Disconnected).
      */
-    val isConnected: StateFlow<Boolean> = repository.isConnected
+    val isConnected: StateFlow<Boolean> = observeConnectionStatusUseCase()
 
     /**
-     * Status of the price tracking feed.
+     * Whether the price feed is currently active.
      */
-    val isTracking: StateFlow<Boolean> = repository.isTracking
+    val isTracking: StateFlow<Boolean> = toggleStockTrackingUseCase.isTracking
 
     /**
-     * Sorted real-time stock ticks.
+     * The stream of stock ticks, sorted by price (highest first).
      */
     val stockTicks: StateFlow<List<StockTick>> = getStockUpdatesUseCase()
         .stateIn(
@@ -36,15 +42,11 @@ class StockViewModel(
         )
 
     /**
-     * Controls the start/stop state of the WebSocket stream.
+     * Starts or stops the price feed logic via UseCase.
      */
-    fun toggleTracking(symbols: List<String>) {
+    fun toggleTracking() {
         viewModelScope.launch {
-            if (isTracking.value) {
-                repository.stopTracking()
-            } else {
-                repository.startTracking(symbols)
-            }
+            toggleStockTrackingUseCase()
         }
     }
 }

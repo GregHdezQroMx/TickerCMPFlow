@@ -4,29 +4,24 @@ import domain.model.StockTick
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
+/**
+ * Clean Repository Interface.
+ * It only knows about Domain Models and Connection State.
+ */
 interface StockRepository {
-    /**
-     * Connection status indicator.
-     */
     val isConnected: StateFlow<Boolean>
 
+    suspend fun connect()
+    fun disconnect()
+    
     /**
-     * Status of the price feed (Started/Stopped).
+     * Sends a list of stock ticks. 
+     * The implementation will handle the conversion to the wire format.
      */
-    val isTracking: StateFlow<Boolean>
+    suspend fun sendTicks(ticks: List<StockTick>)
 
     /**
-     * Starts the price feed for the given symbols.
-     */
-    suspend fun startTracking(symbols: List<String>)
-
-    /**
-     * Stops the price feed and closes the connection.
-     */
-    fun stopTracking()
-
-    /**
-     * Observes the stream of stock updates.
+     * Stream of ticks received from the server.
      */
     fun observeStockUpdates(): Flow<List<StockTick>>
 }

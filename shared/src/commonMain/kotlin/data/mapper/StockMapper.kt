@@ -6,11 +6,10 @@ import kotlin.time.Clock
 
 /**
  * Transforms WSS Raw String: "AAPL,312.81,4.66|GOOGL,107.72,3.52"
- * Into: List<StockTick> with 2-decimal precision and current timestamp.
+ * Into: List<StockTick>
  */
 fun String.toStockTicks(): List<StockTick> {
     if (this.isBlank()) return emptyList()
-
     val currentTimestamp = Clock.System.now().toEpochMilliseconds()
 
     return this.split("|").mapNotNull { rawTick ->
@@ -27,6 +26,15 @@ fun String.toStockTicks(): List<StockTick> {
         } catch (e: Exception) {
             null
         }
+    }
+}
+
+/**
+ * Transforms List<StockTick> into Wire Format String for Echo Server.
+ */
+fun List<StockTick>.toWireFormat(): String {
+    return this.joinToString("|") { tick ->
+        "${tick.symbol},${tick.price},${tick.changePercentage}"
     }
 }
 

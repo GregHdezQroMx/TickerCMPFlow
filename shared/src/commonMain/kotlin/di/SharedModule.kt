@@ -1,10 +1,12 @@
 package di
 
-import com.jght.business.stockmarket.ticker_cmp_flow.data.repository.StockRepositoryImpl
 import data.provider.ComposeConfigProvider
+import data.repository.StockRepositoryImpl
 import domain.provider.ConfigProvider
 import domain.repository.StockRepository
 import domain.usecase.GetStockUpdatesUseCase
+import domain.usecase.ObserveConnectionStatusUseCase
+import domain.usecase.ToggleStockTrackingUseCase
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.websocket.WebSockets
 import kotlinx.serialization.json.Json
@@ -30,15 +32,15 @@ val sharedModule = module {
     }
 
     /**
-     * Provider implementation for Configuration (Framework/Data layer).
+     * Provider implementation for Configuration.
      */
     single<ConfigProvider> { ComposeConfigProvider() }
 
     /**
      * Singleton Repository: 
-     * Now clean and decoupled via ConfigProvider.
+     * Manages raw WebSocket connection.
      */
-    single<StockRepository> { 
+    single<StockRepository> {
         StockRepositoryImpl(
             client = get(),
             json = get(),
@@ -48,15 +50,18 @@ val sharedModule = module {
 
     // Domain Use Cases
     factory { GetStockUpdatesUseCase(repository = get()) }
+    single { ToggleStockTrackingUseCase(repository = get(), configProvider = get()) }
+    factory { ObserveConnectionStatusUseCase(repository = get()) }
 
     /**
      * ViewModel: 
-     * Pure and decoupled.
+     * Orchestrates UI using UseCases.
      */
     viewModel { 
         StockViewModel(
-            repository = get(),
-            getStockUpdatesUseCase = get()
+            getStockUpdatesUseCase = get(),
+            toggleStockTrackingUseCase = get(),
+            observeConnectionStatusUseCase = get()
         )
     }
 }

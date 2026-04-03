@@ -7,11 +7,11 @@ import kotlinx.coroutines.flow.map
 
 class GetStockUpdatesUseCase(private val repository: StockRepository) {
     /**
-     * Executes the flow observation and sorts symbols alphabetically
-     * to prevent "jumping" rows in the UI.
+     * Executes the flow observation and sorts symbols by price (Highest first)
+     * as required by the technical challenge.
      */
     operator fun invoke(): Flow<List<StockTick>> =
         repository.observeStockUpdates().map { ticks ->
-            ticks.sortedBy { it.symbol }
+            ticks.sortedByDescending { it.price }
         }
 }

@@ -2,15 +2,31 @@ package domain.repository
 
 import domain.model.StockTick
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
 interface StockRepository {
     /**
-     * Pushes a list of stock symbols to the server to trigger an Echo response.
+     * Connection status indicator.
      */
-    suspend fun pushSymbols(symbols: List<String>)
+    val isConnected: StateFlow<Boolean>
 
     /**
-     * Observes the stream of stock updates coming back from the server.
+     * Status of the price feed (Started/Stopped).
+     */
+    val isTracking: StateFlow<Boolean>
+
+    /**
+     * Starts the price feed for the given symbols.
+     */
+    suspend fun startTracking(symbols: List<String>)
+
+    /**
+     * Stops the price feed and closes the connection.
+     */
+    fun stopTracking()
+
+    /**
+     * Observes the stream of stock updates.
      */
     fun observeStockUpdates(): Flow<List<StockTick>>
 }

@@ -50,6 +50,9 @@ kotlin {
                 implementation(libs.ktor.serialization.kotlinx.json)
                 implementation(libs.kotlinx.serialization.json)
 
+                // Navigation: Jetpack Navigation Compose (Multiplatform)
+                implementation(libs.jetbrains.navigation.compose)
+
                 // Napier Logging
                 implementation(libs.napier)
 

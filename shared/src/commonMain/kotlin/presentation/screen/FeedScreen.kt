@@ -33,6 +33,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import presentation.component.ConnectionBadge
+import presentation.component.EmptyFeedState
+import presentation.component.NetworkErrorBanner
+import presentation.component.StockItemShimmer
 import presentation.theme.GreenBullish
 import presentation.theme.RedBearish
 import presentation.theme.TickerCMPFlowTheme
@@ -51,12 +54,14 @@ fun FeedScreen(
     val isConnected by viewModel.isConnected.collectAsState()
     val isTracking by viewModel.isTracking.collectAsState()
     val isReconnecting by viewModel.isReconnecting.collectAsState()
+    val isPersistentError by viewModel.isPersistentError.collectAsState()
 
     FeedContent(
         items = items,
         isConnected = isConnected,
         isTracking = isTracking,
         isReconnecting = isReconnecting,
+        isPersistentError = isPersistentError,
         onToggleTracking = { viewModel.toggleTracking() },
         sharedTransitionScope = sharedTransitionScope,
         animatedVisibilityScope = animatedVisibilityScope,
@@ -71,6 +76,7 @@ fun FeedContent(
     isConnected: Boolean,
     isTracking: Boolean,
     isReconnecting: Boolean,
+    isPersistentError: Boolean,
     onToggleTracking: () -> Unit,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedContentScope,
@@ -107,20 +113,51 @@ fun FeedContent(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            items(items, key = { it.tick.symbol }) { item ->
-                StockItem(
-                    item = item,
-                    sharedTransitionScope = sharedTransitionScope,
-                    animatedVisibilityScope = animatedVisibilityScope,
-                    modifier = Modifier
-                        .animateItem() 
-                        .clickable { onNavigateToDetail(item.tick.symbol) }
-                )
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            // Error Banner: Informational Layer (with Persistent Error support)
+            NetworkErrorBanner(
+                isVisible = isTracking && (!isConnected || isReconnecting),
+                isReconnecting = isReconnecting,
+                isPersistentError = isPersistentError
+            )
+
+            // Content Switching
+            when {
+                isTracking -> {
+                    if (items.isNotEmpty()) {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            items(items, key = { it.tick.symbol }) { item ->
+                                StockItem(
+                                    item = item,
+                                    sharedTransitionScope = sharedTransitionScope,
+                                    animatedVisibilityScope = animatedVisibilityScope,
+                                    modifier = Modifier
+                                        .animateItem() 
+                                        .clickable { onNavigateToDetail(item.tick.symbol) }
+                                )
+                            }
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            userScrollEnabled = false
+                        ) {
+                            items(5) {
+                                StockItemShimmer()
+                            }
+                        }
+                    }
+                }
+                
+                else -> {
+                    EmptyFeedState()
+                }
             }
         }
     }
@@ -193,6 +230,7 @@ fun FeedContentPreview() {
                     isConnected = true,
                     isTracking = true,
                     isReconnecting = false,
+                    isPersistentError = false,
                     onToggleTracking = {},
                     sharedTransitionScope = this@SharedTransitionLayout,
                     animatedVisibilityScope = this@AnimatedContent,

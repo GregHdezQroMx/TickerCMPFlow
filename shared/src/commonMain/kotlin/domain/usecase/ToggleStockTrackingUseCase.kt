@@ -20,7 +20,7 @@ import kotlin.random.Random
 
 /**
  * UseCase to handle the logic of starting or stopping the price feed.
- * Implements Exponential Backoff and Lifecycle-aware resilience.
+ * Implements Exponential Backoff, Lifecycle-aware resilience and Fast Persistent Error detection.
  */
 class ToggleStockTrackingUseCase(
     private val repository: StockRepository,
@@ -31,6 +31,9 @@ class ToggleStockTrackingUseCase(
 
     private val _isReconnecting = MutableStateFlow(false)
     val isReconnecting: StateFlow<Boolean> = _isReconnecting.asStateFlow()
+
+    private val _isPersistentError = MutableStateFlow(false)
+    val isPersistentError: StateFlow<Boolean> = _isPersistentError.asStateFlow()
 
     private var isAppActive = true 
     private var trackingJob: Job? = null
@@ -62,7 +65,6 @@ class ToggleStockTrackingUseCase(
         isAppActive = true
         if (_isTrackingEnabled.value && !repository.isConnected.value) {
             Napier.d(tag = "ToggleUseCase") { "🔼 App Resumed: Restoring connection with safety delay..." }
-            // Safety delay to allow OS to cleanup File Descriptors from background closure
             delay(500) 
             startPhysicalTracking()
         }
@@ -72,12 +74,13 @@ class ToggleStockTrackingUseCase(
         isAppActive = false
         Napier.w(tag = "ToggleUseCase") { "🔽 App Backgrounded: Silencing all network activity." }
         stopPhysicalTracking()
-        retryJob?.cancel()
+        retryJob?.cancel() 
         _isReconnecting.value = false
     }
 
     private suspend fun start() {
         _isTrackingEnabled.value = true
+        _isPersistentError.value = false
         val success = startPhysicalTracking()
         if (!success && isAppActive) {
             startAutoReconnect()
@@ -87,6 +90,7 @@ class ToggleStockTrackingUseCase(
     private fun stop() {
         _isTrackingEnabled.value = false
         _isReconnecting.value = false
+        _isPersistentError.value = false
         retryJob?.cancel()
         stopPhysicalTracking()
     }
@@ -97,14 +101,24 @@ class ToggleStockTrackingUseCase(
         retryJob = scope.launch {
             _isReconnecting.value = true
             var delayMs = 2000L
+            var totalAttempts = 0
             
             while (isActive && _isTrackingEnabled.value && isAppActive) {
-                Napier.d(tag = "ToggleUseCase") { "🔄 Retry connection in ${delayMs}ms..." }
+                totalAttempts++
+                
+                // Tech Lead Note: Flag persistent error after 30s of total failure (Attempt #5)
+                if (totalAttempts >= 5) {
+                    _isPersistentError.value = true
+                    Napier.e(tag = "ToggleUseCase") { "🚨 Persistent connection error detected (Attempt #$totalAttempts)." }
+                }
+
+                Napier.d(tag = "ToggleUseCase") { "🔄 Retry #$totalAttempts in ${delayMs}ms..." }
                 delay(delayMs)
                 
                 if (startPhysicalTracking()) {
                     _isReconnecting.value = false
-                    Napier.i(tag = "ToggleUseCase") { "✅ Auto-reconnect successful." }
+                    _isPersistentError.value = false
+                    Napier.i(tag = "ToggleUseCase") { "✅ Auto-reconnect successful after $totalAttempts attempts." }
                     return@launch
                 }
                 

@@ -50,6 +50,7 @@ import domain.model.Candle
 import domain.model.StockMetadata
 import kotlinx.coroutines.delay
 import presentation.component.ConnectionBadge
+import presentation.component.NetworkErrorBanner
 import presentation.theme.GreenBullish
 import presentation.theme.RedBearish
 import presentation.viewmodel.StockDetailViewModel
@@ -65,6 +66,8 @@ fun DetailScreen(
     val tick by viewModel.stockTick.collectAsState()
     val isTracking by viewModel.isTracking.collectAsState()
     val isConnected by viewModel.isConnected.collectAsState()
+    val isReconnecting by viewModel.isReconnecting.collectAsState()
+    val isPersistentError by viewModel.isPersistentError.collectAsState()
     val history by viewModel.history.collectAsState()
     val metadata = viewModel.metadata
     val scrollState = rememberScrollState()
@@ -73,7 +76,10 @@ fun DetailScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    ConnectionBadge(isConnected = isConnected)
+                    ConnectionBadge(
+                        isConnected = isConnected,
+                        isReconnecting = isReconnecting
+                    )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -123,67 +129,79 @@ fun DetailScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(scrollState)
-                .padding(horizontal = 24.dp)
         ) {
-            with(sharedTransitionScope) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Bottom
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = metadata.symbol,
-                            style = MaterialTheme.typography.headlineLarge,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.sharedElement(
-                                rememberSharedContentState(key = "symbol-${metadata.symbol}"),
-                                animatedVisibilityScope = animatedVisibilityScope
-                            )
-                        )
-                        Text(
-                            text = metadata.name,
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                        )
-                    }
+            // Global Resilience Banner with Persistent Error Support
+            NetworkErrorBanner(
+                isVisible = isTracking && (!isConnected || isReconnecting),
+                isReconnecting = isReconnecting,
+                isPersistentError = isPersistentError
+            )
 
-                    tick?.let {
-                        Column(horizontalAlignment = Alignment.End) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = 24.dp)
+            ) {
+                with(sharedTransitionScope) {
+                    Row(
+                        modifier = Modifier.padding(top = 24.dp).fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "$${it.price}",
-                                style = MaterialTheme.typography.headlineMedium,
+                                text = metadata.symbol,
+                                style = MaterialTheme.typography.headlineLarge,
+                                color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.sharedElement(
-                                    rememberSharedContentState(key = "price-${metadata.symbol}"),
+                                    rememberSharedContentState(key = "symbol-${metadata.symbol}"),
                                     animatedVisibilityScope = animatedVisibilityScope
                                 )
                             )
                             Text(
-                                text = "${if (it.changePercentage >= 0) "+" else ""}${it.changePercentage}%",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = if (it.changePercentage >= 0) GreenBullish else RedBearish
+                                text = metadata.name,
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                             )
+                        }
+
+                        tick?.let {
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    text = "$${it.price}",
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    modifier = Modifier.sharedElement(
+                                        rememberSharedContentState(key = "price-${metadata.symbol}"),
+                                        animatedVisibilityScope = animatedVisibilityScope
+                                    )
+                                )
+                                Text(
+                                    text = "${if (it.changePercentage >= 0) "+" else ""}${it.changePercentage}%",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = if (it.changePercentage >= 0) GreenBullish else RedBearish
+                                )
+                            }
                         }
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(40.dp))
+                Spacer(modifier = Modifier.height(40.dp))
 
-            StaggeredItem(index = 1) {
-                CandlestickChart(history)
-            }
+                StaggeredItem(index = 1) {
+                    CandlestickChart(history)
+                }
 
-            StaggeredItem(index = 2) {
-                AboutSection(metadata)
-            }
+                StaggeredItem(index = 2) {
+                    AboutSection(metadata)
+                }
 
-            StaggeredItem(index = 3) {
-                MarketStats(metadata)
+                StaggeredItem(index = 3) {
+                    MarketStats(metadata)
+                }
+                
+                Spacer(modifier = Modifier.height(100.dp))
             }
-            
-            Spacer(modifier = Modifier.height(100.dp))
         }
     }
 }

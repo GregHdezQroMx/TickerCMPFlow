@@ -40,6 +40,16 @@ class StockDetailViewModel(
      */
     val isTracking: StateFlow<Boolean> = toggleStockTrackingUseCase.isTrackingEnabled
 
+    /**
+     * Active reconnection attempts (🟠 Reconnecting).
+     */
+    val isReconnecting: StateFlow<Boolean> = toggleStockTrackingUseCase.isReconnecting
+
+    /**
+     * Persistent error detection (🚨 Persistent Issue).
+     */
+    val isPersistentError: StateFlow<Boolean> = toggleStockTrackingUseCase.isPersistentError
+
     val metadata: StockMetadata = getStockMetadataUseCase(symbol)
 
     private val _history = MutableStateFlow<List<Candle>>(emptyList())

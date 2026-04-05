@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -52,6 +53,9 @@ class StockRepositoryImpl(
     override suspend fun connect(): Boolean = connectionMutex.withLock {
         if (_isConnected.value) return true
         
+        // Ensure previous resources are fully cleared before a new attempt
+        cleanupInternal()
+        
         val host = configProvider.getHost()
         val path = configProvider.getPath()
         val connectionResult = CompletableDeferred<Boolean>()
@@ -63,7 +67,13 @@ class StockRepositoryImpl(
                     _isConnected.value = true
                     if (!connectionResult.isCompleted) connectionResult.complete(true)
                     Napier.d(tag = TAG) { "✅ WebSocket Connected" }
-                    receiveEcho()
+                    
+                    try {
+                        receiveEcho()
+                    } finally {
+                        _isConnected.value = false
+                        session = null
+                    }
                 }
             } catch (e: Exception) {
                 Napier.e(tag = TAG) { "❌ WSS Error: ${e.message}" }
@@ -87,19 +97,30 @@ class StockRepositoryImpl(
     }
 
     override fun disconnect() {
-        connectionJob?.cancel()
+        CoroutineScope(Dispatchers.IO).launch {
+            connectionMutex.withLock {
+                cleanupInternal()
+                _isConnected.value = false
+            }
+        }
+    }
+
+    private suspend fun cleanupInternal() {
+        connectionJob?.cancelAndJoin()
         connectionJob = null
-        _isConnected.value = false
+        session = null
     }
 
     override suspend fun sendTicks(ticks: List<StockTick>) {
         try {
-            if (_isConnected.value) {
+            val currentSession = session
+            if (_isConnected.value && currentSession != null) {
                 val rawData = ticks.toWireFormat()
-                session?.send(Frame.Text(rawData))
+                currentSession.send(Frame.Text(rawData))
             }
         } catch (e: Exception) {
             Napier.e(tag = TAG) { "⚠️ Failed to send ticks: ${e.message}" }
+            _isConnected.value = false
         }
     }
 
@@ -114,6 +135,7 @@ class StockRepositoryImpl(
             }
         } catch (e: Exception) {
             Napier.e(tag = TAG) { "📉 Receiver Error: ${e.message}" }
+            throw e
         }
     }
 }

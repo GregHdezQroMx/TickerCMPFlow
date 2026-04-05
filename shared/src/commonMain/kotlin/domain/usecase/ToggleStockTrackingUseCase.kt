@@ -20,7 +20,7 @@ import kotlin.random.Random
 
 /**
  * UseCase to handle the logic of starting or stopping the price feed.
- * Ensures the Switch and Connection Indicator are always in sync by observing the Repository.
+ * Implements Exponential Backoff and Lifecycle-aware resilience.
  */
 class ToggleStockTrackingUseCase(
     private val repository: StockRepository,
@@ -29,18 +29,22 @@ class ToggleStockTrackingUseCase(
     private val _isTrackingEnabled = MutableStateFlow(false)
     val isTrackingEnabled: StateFlow<Boolean> = _isTrackingEnabled.asStateFlow()
 
+    private val _isReconnecting = MutableStateFlow(false)
+    val isReconnecting: StateFlow<Boolean> = _isReconnecting.asStateFlow()
+
+    private var isAppActive = true 
     private var trackingJob: Job? = null
+    private var retryJob: Job? = null
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     private val lastPrices = mutableMapOf<String, Double>()
 
     init {
-        // Atomic Sync: If physical connection is lost, revert user intent immediately
         repository.isConnected
             .onEach { connected ->
-                if (!connected && _isTrackingEnabled.value) {
-                    Napier.w(tag = "ToggleUseCase") { "⚠️ WebSocket connection lost. Reverting switch." }
+                if (!connected && _isTrackingEnabled.value && !_isReconnecting.value && isAppActive) {
+                    Napier.w(tag = "ToggleUseCase") { "⚠️ WebSocket disconnected. Starting auto-retry..." }
                     stopPhysicalTracking()
-                    _isTrackingEnabled.value = false
+                    startAutoReconnect()
                 }
             }
             .launchIn(scope)
@@ -55,33 +59,64 @@ class ToggleStockTrackingUseCase(
     }
 
     suspend fun resumeIfEnabled() {
-        if (_isTrackingEnabled.value) {
+        isAppActive = true
+        if (_isTrackingEnabled.value && !repository.isConnected.value) {
+            Napier.d(tag = "ToggleUseCase") { "🔼 App Resumed: Restoring connection with safety delay..." }
+            // Safety delay to allow OS to cleanup File Descriptors from background closure
+            delay(500) 
             startPhysicalTracking()
         }
     }
 
     fun pausePhysically() {
+        isAppActive = false
+        Napier.w(tag = "ToggleUseCase") { "🔽 App Backgrounded: Silencing all network activity." }
         stopPhysicalTracking()
+        retryJob?.cancel()
+        _isReconnecting.value = false
     }
 
     private suspend fun start() {
         _isTrackingEnabled.value = true
         val success = startPhysicalTracking()
-        if (!success) {
-            _isTrackingEnabled.value = false
-            Napier.e(tag = "ToggleUseCase") { "❌ Failed to connect. Aborting tracking." }
+        if (!success && isAppActive) {
+            startAutoReconnect()
         }
     }
 
     private fun stop() {
         _isTrackingEnabled.value = false
+        _isReconnecting.value = false
+        retryJob?.cancel()
         stopPhysicalTracking()
+    }
+
+    private fun startAutoReconnect() {
+        if (retryJob?.isActive == true || !isAppActive) return
+        
+        retryJob = scope.launch {
+            _isReconnecting.value = true
+            var delayMs = 2000L
+            
+            while (isActive && _isTrackingEnabled.value && isAppActive) {
+                Napier.d(tag = "ToggleUseCase") { "🔄 Retry connection in ${delayMs}ms..." }
+                delay(delayMs)
+                
+                if (startPhysicalTracking()) {
+                    _isReconnecting.value = false
+                    Napier.i(tag = "ToggleUseCase") { "✅ Auto-reconnect successful." }
+                    return@launch
+                }
+                
+                delayMs = (delayMs * 2).coerceAtMost(30000L)
+            }
+            _isReconnecting.value = false
+        }
     }
 
     private suspend fun startPhysicalTracking(): Boolean {
         if (trackingJob?.isActive == true) return true
         
-        // Block until connection is established or timeout (Deterministic)
         val connected = repository.connect()
         if (!connected) return false
         

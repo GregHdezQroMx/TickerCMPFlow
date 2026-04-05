@@ -36,6 +36,7 @@ class StockViewModel(
 
     val isConnected: StateFlow<Boolean> = observeConnectionStatusUseCase()
     val isTracking: StateFlow<Boolean> = toggleStockTrackingUseCase.isTrackingEnabled
+    val isReconnecting: StateFlow<Boolean> = toggleStockTrackingUseCase.isReconnecting
 
     /**
      * Enhanced stream: Maps raw ticks to a UI state including company names.

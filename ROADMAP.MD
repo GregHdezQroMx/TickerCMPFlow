@@ -28,13 +28,13 @@
     - [x] **Ergonomics**: Bottom-fixed CTA (Zone del Pulgar) and Staggered entrance (80ms).
     - [x] **Sincronización**: Unified `ConnectionBadge` and Persistent User Intent.
 
-## Phase 4: Hardening & Resilience 🛡️ (NEXT)
-- [ ] **Connection Management**: Auto-reconnect logic for WebSocket failures.
+## Phase 4: Hardening & Resilience 🛡️
+- [x] **Connection Management**: Auto-reconnect logic for WebSocket failures.
+- [x] **Lifecycle Awareness**: Refined energy saving strategies for background processes (Stop retries in background).
 - [ ] **Error UI**: Implementation of Empty States, Loading Shimmers, and Error Banners.
 - [ ] **Unit Testing**: 
     - [ ] `StockMapperTest`: Validating decimal rounding and parsing.
     - [ ] `StockViewModelTest`: Mocking the UseCase flow.
-- [ ] **Lifecycle Awareness**: Refined energy saving strategies for background processes.
 
 ## Phase 5: Polish & Performance ⚡
 - [ ] **Image Resources**: Setup `composeResources` for icons and splash screen.

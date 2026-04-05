@@ -50,11 +50,13 @@ fun FeedScreen(
     val items by viewModel.stockItems.collectAsState()
     val isConnected by viewModel.isConnected.collectAsState()
     val isTracking by viewModel.isTracking.collectAsState()
+    val isReconnecting by viewModel.isReconnecting.collectAsState()
 
     FeedContent(
         items = items,
         isConnected = isConnected,
         isTracking = isTracking,
+        isReconnecting = isReconnecting,
         onToggleTracking = { viewModel.toggleTracking() },
         sharedTransitionScope = sharedTransitionScope,
         animatedVisibilityScope = animatedVisibilityScope,
@@ -68,6 +70,7 @@ fun FeedContent(
     items: List<StockItemState>,
     isConnected: Boolean,
     isTracking: Boolean,
+    isReconnecting: Boolean,
     onToggleTracking: () -> Unit,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedContentScope,
@@ -86,6 +89,7 @@ fun FeedContent(
                 navigationIcon = {
                     ConnectionBadge(
                         isConnected = isConnected,
+                        isReconnecting = isReconnecting,
                         modifier = Modifier.padding(start = 16.dp)
                     )
                 },
@@ -188,6 +192,7 @@ fun FeedContentPreview() {
                     items = emptyList(),
                     isConnected = true,
                     isTracking = true,
+                    isReconnecting = false,
                     onToggleTracking = {},
                     sharedTransitionScope = this@SharedTransitionLayout,
                     animatedVisibilityScope = this@AnimatedContent,

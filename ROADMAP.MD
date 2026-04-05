@@ -17,20 +17,24 @@
 - [x] **State Management**: `StockViewModel` in `commonMain` using `stateIn`.
 - [x] **Logcat Validation**: Verified 2ms batch processing (25 items/tick).
 
-## Phase 3: Core UI & Navigation 📱 🕒 (NEXT)
-- [ ] **Type-Safe Navigation**: implementation of `androidx-navigation` in `shared`.
-- [ ] **Shared Theme**: Material3 setup with custom color schemes for Dark/Light mode.
-- [ ] **Feed Screen**: `LazyColumn` with high-frequency updates and `Modifier.animateItem()`.
-- [ ] **Stock Item**: Visual indicators (Red/Green) based on `changePercentage` delta.
-- [ ] **Detail Screen**: Deep-dive view for a single ticker using Navigation arguments.
+## Phase 3: Core UI & Navigation ✅
+- [x] **Type-Safe Navigation**: Implementation of `androidx-navigation` in `shared`.
+- [x] **Shared Theme**: Material3 setup with OLED-ready Dark Mode.
+- [x] **Feed Screen**: `LazyColumn` with `animateItem()` and stable sorting (Price + Symbol).
+- [x] **Stock Item**: Enhanced legibility with Company Names and Delta indicators.
+- [x] **Detail Screen**: 
+    - [x] **Shared Elements**: Seamless transition for Symbol and Price.
+    - [x] **Candlestick Chart**: Real-time OHLC visualization using `Canvas`.
+    - [x] **Ergonomics**: Bottom-fixed CTA (Zone del Pulgar) and Staggered entrance (80ms).
+    - [x] **Sincronización**: Unified `ConnectionBadge` and Persistent User Intent.
 
-## Phase 4: Hardening & Resilience 🛡️
+## Phase 4: Hardening & Resilience 🛡️ (NEXT)
 - [ ] **Connection Management**: Auto-reconnect logic for WebSocket failures.
 - [ ] **Error UI**: Implementation of Empty States, Loading Shimmers, and Error Banners.
 - [ ] **Unit Testing**: 
     - [ ] `StockMapperTest`: Validating decimal rounding and parsing.
     - [ ] `StockViewModelTest`: Mocking the UseCase flow.
-- [ ] **Lifecycle Awareness**: Ensuring `WhileSubscribed(5000)` kills the WSS on background.
+- [ ] **Lifecycle Awareness**: Refined energy saving strategies for background processes.
 
 ## Phase 5: Polish & Performance ⚡
 - [ ] **Image Resources**: Setup `composeResources` for icons and splash screen.

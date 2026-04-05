@@ -11,6 +11,8 @@ import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
 import io.ktor.client.plugins.websocket.wss
 import io.ktor.websocket.Frame
 import io.ktor.websocket.readText
+import io.ktor.websocket.send
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -22,9 +24,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
 
 private const val TAG = "StockRepo"
+private const val CONNECTION_TIMEOUT_MS = 5000L
 
 class StockRepositoryImpl(
     private val client: HttpClient,
@@ -34,6 +40,7 @@ class StockRepositoryImpl(
 
     private var session: DefaultClientWebSocketSession? = null
     private var connectionJob: Job? = null
+    private val connectionMutex = Mutex()
     
     private val _stockTicks = MutableStateFlow<List<StockTick>>(emptyList())
     private val _isConnected = MutableStateFlow(false)
@@ -42,25 +49,40 @@ class StockRepositoryImpl(
 
     override fun observeStockUpdates(): Flow<List<StockTick>> = _stockTicks.asStateFlow()
 
-    override suspend fun connect() {
-        if (_isConnected.value) return
+    override suspend fun connect(): Boolean = connectionMutex.withLock {
+        if (_isConnected.value) return true
         
         val host = configProvider.getHost()
         val path = configProvider.getPath()
+        val connectionResult = CompletableDeferred<Boolean>()
 
         connectionJob = CoroutineScope(Dispatchers.IO).launch {
             try {
                 client.wss(host = host, path = path) {
                     session = this
                     _isConnected.value = true
+                    if (!connectionResult.isCompleted) connectionResult.complete(true)
+                    Napier.d(tag = TAG) { "✅ WebSocket Connected" }
                     receiveEcho()
                 }
             } catch (e: Exception) {
-                Napier.e(tag = TAG) { "WSS Connection Error: ${e.message}" }
+                Napier.e(tag = TAG) { "❌ WSS Error: ${e.message}" }
+                if (!connectionResult.isCompleted) connectionResult.complete(false)
             } finally {
                 _isConnected.value = false
                 session = null
+                Napier.w(tag = TAG) { "🔌 WebSocket Disconnected" }
             }
+        }
+
+        return try {
+            withTimeout(CONNECTION_TIMEOUT_MS) {
+                connectionResult.await()
+            }
+        } catch (e: Exception) {
+            Napier.e(tag = TAG) { "⏳ Connection Timeout" }
+            disconnect()
+            false
         }
     }
 
@@ -72,10 +94,12 @@ class StockRepositoryImpl(
 
     override suspend fun sendTicks(ticks: List<StockTick>) {
         try {
-            val rawData = ticks.toWireFormat()
-            session?.send(Frame.Text(rawData))
+            if (_isConnected.value) {
+                val rawData = ticks.toWireFormat()
+                session?.send(Frame.Text(rawData))
+            }
         } catch (e: Exception) {
-            Napier.e(tag = TAG) { "Failed to send ticks: ${e.message}" }
+            Napier.e(tag = TAG) { "⚠️ Failed to send ticks: ${e.message}" }
         }
     }
 
@@ -89,7 +113,7 @@ class StockRepositoryImpl(
                 }
             }
         } catch (e: Exception) {
-            Napier.e(tag = TAG) { "Receiver Error: ${e.message}" }
+            Napier.e(tag = TAG) { "📉 Receiver Error: ${e.message}" }
         }
     }
 }

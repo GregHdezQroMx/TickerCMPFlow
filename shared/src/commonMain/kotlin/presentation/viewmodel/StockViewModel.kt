@@ -3,75 +3,73 @@ package presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import domain.model.StockTick
+import domain.usecase.GetStockMetadataUseCase
 import domain.usecase.GetStockUpdatesUseCase
 import domain.usecase.ObserveConnectionStatusUseCase
 import domain.usecase.ToggleStockTrackingUseCase
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
+ * Data class to combine Tick data with Metadata for the UI.
+ */
+data class StockItemState(
+    val tick: StockTick,
+    val companyName: String
+)
+
+/**
  * ViewModel for the Feed Screen.
- * Pure orchestration of UseCases for a scalable Clean Architecture.
  */
 class StockViewModel(
     private val getStockUpdatesUseCase: GetStockUpdatesUseCase,
     private val toggleStockTrackingUseCase: ToggleStockTrackingUseCase,
-    private val observeConnectionStatusUseCase: ObserveConnectionStatusUseCase
+    private val observeConnectionStatusUseCase: ObserveConnectionStatusUseCase,
+    private val getStockMetadataUseCase: GetStockMetadataUseCase
 ) : ViewModel() {
 
     private val tag = this::class.simpleName ?: "StockViewModel"
 
-    /**
-     * Connection status (🟢 Connected / 🔴 Disconnected).
-     */
     val isConnected: StateFlow<Boolean> = observeConnectionStatusUseCase()
+    val isTracking: StateFlow<Boolean> = toggleStockTrackingUseCase.isTrackingEnabled
 
     /**
-     * Whether the price feed is currently active according to user intent.
+     * Enhanced stream: Maps raw ticks to a UI state including company names.
      */
-    val isTracking: StateFlow<Boolean> = toggleStockTrackingUseCase.isTracking
-
-    /**
-     * The stream of stock ticks, sorted by price (highest first).
-     */
-    val stockTicks: StateFlow<List<StockTick>> = getStockUpdatesUseCase()
+    val stockItems: StateFlow<List<StockItemState>> = getStockUpdatesUseCase()
+        .map { ticks ->
+            ticks.map { tick ->
+                StockItemState(
+                    tick = tick,
+                    companyName = getStockMetadataUseCase(tick.symbol).name
+                )
+            }
+        }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
 
-    /**
-     * User-triggered action to toggle the feed.
-     */
     fun toggleTracking() {
         viewModelScope.launch {
             toggleStockTrackingUseCase()
         }
     }
 
-    /**
-     * Lifecycle-aware resume: Restores connection if user intent is 'tracking'.
-     */
     fun onResume() {
         viewModelScope.launch {
-            if (isTracking.value) {
-                Napier.d(tag = tag) { "🚀 App Resumed: Reconnecting WebSocket to save resources" }
-                toggleStockTrackingUseCase.startTracking()
-            }
+            Napier.d(tag = tag) { "🚀 App Resumed: Syncing WebSocket state..." }
+            toggleStockTrackingUseCase.resumeIfEnabled()
         }
     }
 
-    /**
-     * Lifecycle-aware stop: Physically closes connection to avoid battery drain.
-     */
     fun onStop() {
-        if (isTracking.value) {
-            Napier.w(tag = tag) { "🔋 App Backgrounded: Disconnecting WebSocket to prevent Battery Drain" }
-            toggleStockTrackingUseCase.stopTracking()
-        }
+        Napier.w(tag = tag) { "🔋 App Backgrounded: Pausing WebSocket physically" }
+        toggleStockTrackingUseCase.pausePhysically()
     }
 }

@@ -7,11 +7,15 @@ import kotlinx.coroutines.flow.map
 
 class GetStockUpdatesUseCase(private val repository: StockRepository) {
     /**
-     * Executes the flow observation and sorts symbols by price (Highest first)
-     * as required by the technical challenge.
+     * Executes the flow observation and sorts symbols by price (Highest first).
+     * Added a secondary sort by Symbol to ensure stability during price ties
+     * and prevent UI jumping.
      */
     operator fun invoke(): Flow<List<StockTick>> =
         repository.observeStockUpdates().map { ticks ->
-            ticks.sortedByDescending { it.price }
+            ticks.sortedWith(
+                compareByDescending<StockTick> { it.price }
+                    .thenBy { it.symbol }
+            )
         }
 }

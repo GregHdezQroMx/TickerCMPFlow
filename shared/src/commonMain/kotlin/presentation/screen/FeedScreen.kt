@@ -13,10 +13,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -24,7 +22,6 @@ import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
@@ -35,10 +32,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import domain.model.StockTick
+import presentation.component.ConnectionBadge
 import presentation.theme.GreenBullish
 import presentation.theme.RedBearish
 import presentation.theme.TickerCMPFlowTheme
+import presentation.viewmodel.StockItemState
 import presentation.viewmodel.StockViewModel
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -49,12 +47,12 @@ fun FeedScreen(
     animatedVisibilityScope: AnimatedContentScope,
     onNavigateToDetail: (String) -> Unit
 ) {
-    val ticks by viewModel.stockTicks.collectAsState()
+    val items by viewModel.stockItems.collectAsState()
     val isConnected by viewModel.isConnected.collectAsState()
     val isTracking by viewModel.isTracking.collectAsState()
 
     FeedContent(
-        ticks = ticks,
+        items = items,
         isConnected = isConnected,
         isTracking = isTracking,
         onToggleTracking = { viewModel.toggleTracking() },
@@ -67,7 +65,7 @@ fun FeedScreen(
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun FeedContent(
-    ticks: List<StockTick>,
+    items: List<StockItemState>,
     isConnected: Boolean,
     isTracking: Boolean,
     onToggleTracking: () -> Unit,
@@ -80,17 +78,16 @@ fun FeedContent(
             CenterAlignedTopAppBar(
                 title = { 
                     Text(
-                        "LIVE TERMINAL", 
+                        text = "LIVE TERMINAL", 
                         style = MaterialTheme.typography.headlineMedium,
                         color = MaterialTheme.colorScheme.primary
                     ) 
                 },
                 navigationIcon = {
-                    Surface(
-                        shape = CircleShape,
-                        color = if (isConnected) GreenBullish else RedBearish,
-                        modifier = Modifier.padding(start = 16.dp).size(10.dp)
-                    ) {}
+                    ConnectionBadge(
+                        isConnected = isConnected,
+                        modifier = Modifier.padding(start = 16.dp)
+                    )
                 },
                 actions = {
                     Switch(
@@ -99,7 +96,7 @@ fun FeedContent(
                         modifier = Modifier.padding(end = 16.dp)
                     )
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
                 )
             )
@@ -111,14 +108,14 @@ fun FeedContent(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            items(ticks, key = { it.symbol }) { tick ->
+            items(items, key = { it.tick.symbol }) { item ->
                 StockItem(
-                    tick = tick,
+                    item = item,
                     sharedTransitionScope = sharedTransitionScope,
                     animatedVisibilityScope = animatedVisibilityScope,
                     modifier = Modifier
                         .animateItem() 
-                        .clickable { onNavigateToDetail(tick.symbol) }
+                        .clickable { onNavigateToDetail(item.tick.symbol) }
                 )
             }
         }
@@ -128,7 +125,7 @@ fun FeedContent(
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun StockItem(
-    tick: StockTick,
+    item: StockItemState,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedContentScope,
     modifier: Modifier = Modifier
@@ -144,35 +141,35 @@ fun StockItem(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = tick.symbol,
+                        text = item.tick.symbol,
                         style = MaterialTheme.typography.titleLarge,
                         modifier = Modifier.sharedElement(
-                            rememberSharedContentState(key = "symbol-${tick.symbol}"),
+                            rememberSharedContentState(key = "symbol-${item.tick.symbol}"),
                             animatedVisibilityScope = animatedVisibilityScope
                         )
                     )
                     Text(
-                        text = "Real-time updates",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        text = item.companyName,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                     )
                 }
                 
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        text = "$${tick.price}",
+                        text = "$${item.tick.price}",
                         style = MaterialTheme.typography.labelMedium,
                         modifier = Modifier.sharedElement(
-                            rememberSharedContentState(key = "price-${tick.symbol}"),
+                            rememberSharedContentState(key = "price-${item.tick.symbol}"),
                             animatedVisibilityScope = animatedVisibilityScope
                         )
                     )
                     Text(
-                        text = "${if (tick.changePercentage >= 0) "+" else ""}${tick.changePercentage}%",
+                        text = "${if (item.tick.changePercentage >= 0) "+" else ""}${item.tick.changePercentage}%",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = if (tick.changePercentage >= 0) GreenBullish else RedBearish
+                        color = if (item.tick.changePercentage >= 0) GreenBullish else RedBearish
                     )
                 }
             }
@@ -184,17 +181,11 @@ fun StockItem(
 @Preview
 @Composable
 fun FeedContentPreview() {
-    val mockTicks = listOf(
-        StockTick("TSLA", 182.45, 2.45, 0L),
-        StockTick("NVDA", 142.18, 5.12, 0L),
-        StockTick("AAPL", 175.84, 1.10, 0L),
-        StockTick("BTC", 68412.0, -0.54, 0L)
-    )
     TickerCMPFlowTheme {
         SharedTransitionLayout {
             AnimatedContent(targetState = true) { _ ->
                 FeedContent(
-                    ticks = mockTicks,
+                    items = emptyList(),
                     isConnected = true,
                     isTracking = true,
                     onToggleTracking = {},

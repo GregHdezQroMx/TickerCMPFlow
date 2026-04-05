@@ -7,6 +7,7 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -28,6 +30,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -40,9 +43,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.dp
+import domain.model.Candle
 import domain.model.StockMetadata
 import kotlinx.coroutines.delay
+import presentation.component.ConnectionBadge
 import presentation.theme.GreenBullish
 import presentation.theme.RedBearish
 import presentation.viewmodel.StockDetailViewModel
@@ -56,13 +63,18 @@ fun DetailScreen(
     onBack: () -> Unit
 ) {
     val tick by viewModel.stockTick.collectAsState()
+    val isTracking by viewModel.isTracking.collectAsState()
+    val isConnected by viewModel.isConnected.collectAsState()
+    val history by viewModel.history.collectAsState()
     val metadata = viewModel.metadata
     val scrollState = rememberScrollState()
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {},
+                title = {
+                    ConnectionBadge(isConnected = isConnected)
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -71,10 +83,39 @@ fun DetailScreen(
                         )
                     }
                 },
+                actions = {
+                    Switch(
+                        checked = isTracking,
+                        onCheckedChange = { viewModel.toggleTracking() },
+                        modifier = Modifier.padding(end = 16.dp)
+                    )
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
                 )
             )
+        },
+        bottomBar = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 24.dp, vertical = 16.dp)
+            ) {
+                StaggeredItem(index = 4) {
+                    Button(
+                        onClick = { /* Buy Action */ },
+                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                        shape = MaterialTheme.shapes.extraLarge,
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text(
+                            text = "BUY ${metadata.symbol}", 
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                    }
+                }
+            }
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
@@ -103,8 +144,8 @@ fun DetailScreen(
                         )
                         Text(
                             text = metadata.name,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                         )
                     }
 
@@ -131,7 +172,7 @@ fun DetailScreen(
             Spacer(modifier = Modifier.height(40.dp))
 
             StaggeredItem(index = 1) {
-                MarketChartPlaceholder()
+                CandlestickChart(history)
             }
 
             StaggeredItem(index = 2) {
@@ -141,36 +182,43 @@ fun DetailScreen(
             StaggeredItem(index = 3) {
                 MarketStats(metadata)
             }
-
-            StaggeredItem(index = 4) {
-                Button(
-                    onClick = { /* Buy Logic */ },
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
-                    shape = MaterialTheme.shapes.extraLarge,
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                ) {
-                    Text("BUY ${metadata.symbol}", style = MaterialTheme.typography.titleMedium)
-                }
-            }
             
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(100.dp))
         }
     }
 }
 
 @Composable
-private fun MarketChartPlaceholder() {
+private fun CandlestickChart(history: List<Candle>) {
     Column {
         Text(
             text = "MARKET PERFORMANCE", 
-            style = MaterialTheme.typography.labelLarge, 
+            style = MaterialTheme.typography.titleSmall, 
             color = MaterialTheme.colorScheme.primary
         )
-        Box(
-            modifier = Modifier.fillMaxWidth().height(200.dp).padding(vertical = 16.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("🕯️ Candlestick Chart (Simulated)", color = GreenBullish)
+        Spacer(modifier = Modifier.height(16.dp))
+        Box(modifier = Modifier.fillMaxWidth().height(220.dp).padding(vertical = 8.dp)) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                if (history.isEmpty()) return@Canvas
+                val maxHigh = history.maxOf { it.high }.toFloat()
+                val minLow = history.minOf { it.low }.toFloat()
+                val range = maxHigh - minLow
+                val candleWidth = size.width / history.size
+                val space = 4.dp.toPx()
+                history.forEachIndexed { index, candle ->
+                    val color = if (candle.close >= candle.open) GreenBullish else RedBearish
+                    val x = index * candleWidth + (space / 2)
+                    val width = candleWidth - space
+                    val yHigh = ((maxHigh - candle.high.toFloat()) / range) * size.height
+                    val yLow = ((maxHigh - candle.low.toFloat()) / range) * size.height
+                    val yOpen = ((maxHigh - candle.open.toFloat()) / range) * size.height
+                    val yClose = ((maxHigh - candle.close.toFloat()) / range) * size.height
+                    drawLine(color, Offset(x + width / 2, yHigh), Offset(x + width / 2, yLow), 2.dp.toPx())
+                    val top = minOf(yOpen, yClose)
+                    val bottom = maxOf(yOpen, yClose)
+                    drawRect(color, Offset(x, top), Size(width, maxOf(2.dp.toPx(), bottom - top)))
+                }
+            }
         }
     }
 }
@@ -182,8 +230,8 @@ private fun AboutSection(metadata: StockMetadata) {
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = metadata.description,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f)
         )
     }
 }
@@ -205,31 +253,22 @@ private fun StatItem(label: String, value: String) {
     Column {
         Text(
             text = label, 
-            style = MaterialTheme.typography.labelMedium, 
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
         )
-        Text(text = value, style = MaterialTheme.typography.titleMedium)
+        Text(text = value, style = MaterialTheme.typography.headlineLarge)
     }
 }
 
 @Composable
-fun StaggeredItem(
-    index: Int,
-    content: @Composable () -> Unit
-) {
+fun StaggeredItem(index: Int, content: @Composable () -> Unit) {
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
-        delay(index * 30L)
+        delay(index * 80L)
         visible = true
     }
-
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn(animationSpec = tween(400)) + slideInVertically(
-            initialOffsetY = { 40 },
-            animationSpec = tween(400)
-        )
-    ) {
-        content()
-    }
+        enter = fadeIn(tween(600)) + slideInVertically(initialOffsetY = { 40 }, animationSpec = tween(600))
+    ) { content() }
 }

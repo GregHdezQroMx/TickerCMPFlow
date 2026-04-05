@@ -10,7 +10,11 @@ import domain.usecase.GetStockUpdatesUseCase
 import domain.usecase.ObserveConnectionStatusUseCase
 import domain.usecase.ToggleStockTrackingUseCase
 import io.ktor.client.HttpClient
+import io.ktor.client.plugins.logging.LogLevel
+import io.ktor.client.plugins.logging.Logging
+import io.ktor.client.plugins.logging.Logger
 import io.ktor.client.plugins.websocket.WebSockets
+import io.github.aakira.napier.Napier
 import kotlinx.serialization.json.Json
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
@@ -19,7 +23,6 @@ import presentation.viewmodel.StockViewModel
 
 val sharedModule = module {
 
-    // Standard Json configuration
     single {
         Json {
             ignoreUnknownKeys = true
@@ -27,22 +30,23 @@ val sharedModule = module {
         }
     }
 
-    // HttpClient with WebSockets
     single {
         HttpClient {
             install(WebSockets)
+            // Senior Move: Log real binary/text frames to Logcat
+            install(Logging) {
+                level = LogLevel.ALL
+                logger = object : Logger {
+                    override fun log(message: String) {
+                        Napier.v(tag = "HTTP_CLIENT") { message }
+                    }
+                }
+            }
         }
     }
 
-    /**
-     * Provider implementation for Configuration.
-     */
     single<ConfigProvider> { ComposeConfigProvider() }
 
-    /**
-     * Singleton Repository: 
-     * Manages raw WebSocket connection.
-     */
     single<StockRepository> {
         StockRepositoryImpl(
             client = get(),
@@ -51,21 +55,18 @@ val sharedModule = module {
         )
     }
 
-    // Domain Use Cases
     factory { GetStockUpdatesUseCase(repository = get()) }
     single { ToggleStockTrackingUseCase(repository = get(), configProvider = get()) }
     factory { ObserveConnectionStatusUseCase(repository = get()) }
     factory { GetStockMetadataUseCase() }
     factory { GetStockDetailUseCase(repository = get()) }
 
-    /**
-     * ViewModels
-     */
     viewModel { 
         StockViewModel(
             getStockUpdatesUseCase = get(),
             toggleStockTrackingUseCase = get(),
-            observeConnectionStatusUseCase = get()
+            observeConnectionStatusUseCase = get(),
+            getStockMetadataUseCase = get()
         )
     }
 
@@ -73,7 +74,9 @@ val sharedModule = module {
         StockDetailViewModel(
             symbol = symbol,
             getStockDetailUseCase = get(),
-            getStockMetadataUseCase = get()
+            getStockMetadataUseCase = get(),
+            toggleStockTrackingUseCase = get(),
+            observeConnectionStatusUseCase = get()
         )
     }
 }

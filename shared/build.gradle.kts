@@ -34,6 +34,7 @@ kotlin {
 
                 implementation(libs.ktor.client.core)
                 implementation(libs.ktor.client.websockets)
+                implementation(libs.ktor.client.logging)
 
                 implementation(libs.ktor.serialization.kotlinx.json)
                 implementation(libs.kotlinx.serialization.json)
@@ -49,7 +50,6 @@ kotlin {
                 implementation(libs.compose.components.resources)
                 implementation(libs.compose.uiToolingPreview)
                 
-                // Properly using Version Catalog for Extended Icons
                 implementation(libs.compose.material.icons.extended)
             }
         }

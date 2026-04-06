@@ -1,0 +1,77 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="160dp"
+    android:height="160dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- CONNECTING TREND LINE (The Flow) -->
+    <path
+        android:strokeColor="#00E5FF"
+        android:strokeWidth="0.6"
+        android:pathData="M3,15.5 L6.5,12.5 L12,12.75 L17.5,14 L21,12"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeAlpha="0.8"/>
+
+    <!-- HOMOGENIZED CHART DIAGRAM -->
+
+    <!-- Candle 1 (Far Left - Bearish Red) -->
+    <path
+        android:fillColor="#FF1744"
+        android:fillAlpha="0.3"
+        android:pathData="M2.7,12h0.6v8h-0.6z"/>
+    <path
+        android:fillColor="#FF1744"
+        android:fillAlpha="0.6"
+        android:pathData="M2,14h2v3h-2z"/>
+
+    <!-- Candle 2 (Mid Left - Bullish Green) -->
+    <path
+        android:fillColor="#00C853"
+        android:fillAlpha="0.3"
+        android:pathData="M6.2,7h0.6v12h-0.6z"/>
+    <path
+        android:fillColor="#00C853"
+        android:fillAlpha="0.6"
+        android:pathData="M5.5,10h2v5h-2z"/>
+
+    <!-- CENTRAL CANDLE (The Brand Core with Embedded T) -->
+    <!-- Center Wick -->
+    <path
+        android:fillColor="#00C853"
+        android:fillAlpha="0.4"
+        android:pathData="M11.7,4h0.6v16h-0.6z"/>
+    <!-- Center Green Body -->
+    <path
+        android:fillColor="#00C853"
+        android:pathData="M9.5,8.5h5v8.5h-5z"/>
+
+    <!-- THE EMBEDDED BLACK T-CORE (High Contrast) -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M10.2,10.2h3.6v1h-3.6z"/> <!-- T Top -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M11.5,11.2h1v4.5h-1z"/> <!-- T Stem -->
+
+    <!-- Candle 3 (Mid Right - Bearish Red) -->
+    <path
+        android:fillColor="#FF1744"
+        android:fillAlpha="0.3"
+        android:pathData="M17.2,9h0.6v11h-0.6z"/>
+    <path
+        android:fillColor="#FF1744"
+        android:fillAlpha="0.6"
+        android:pathData="M16.5,12h2v4h-2z"/>
+
+    <!-- Candle 4 (Far Right - Bullish Green) -->
+    <path
+        android:fillColor="#00C853"
+        android:fillAlpha="0.3"
+        android:pathData="M20.7,6h0.6v13h-0.6z"/>
+    <path
+        android:fillColor="#00C853"
+        android:fillAlpha="0.6"
+        android:pathData="M20,9h2v6h-2z"/>
+
+</vector>

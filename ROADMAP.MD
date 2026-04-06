@@ -34,8 +34,8 @@
 - [x] **Error UI**: Implementation of Empty States, Loading Shimmers, and Error Banners.
 - [x] **Unit Testing**: `StockMapperTest` validating decimal rounding and parsing.
 
-## Phase 5: Polish & Performance ⚡ (NEXT)
-- [ ] **Image Resources**: Setup `composeResources` for icons and splash screen.
+## Phase 5: Polish & Performance ⚡
+- [x] **Image Resources**: Setup `composeResources` for icons and splash screen. ✅
 - [ ] **Performance Audit**: Benchmarking recomposition counts on the LazyColumn.
 - [ ] **Offline Persistence**: (Optional) Room/SQLDelight for last-seen price caching.
 - [ ] *(Optional)* **Builds**: Release APK for Android / XCode config for iOS.

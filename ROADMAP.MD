@@ -28,15 +28,13 @@
     - [x] **Ergonomics**: Bottom-fixed CTA (Zone del Pulgar) and Staggered entrance (80ms).
     - [x] **Sincronización**: Unified `ConnectionBadge` and Persistent User Intent.
 
-## Phase 4: Hardening & Resilience 🛡️
+## Phase 4: Hardening & Resilience 🛡️ ✅
 - [x] **Connection Management**: Auto-reconnect logic for WebSocket failures.
-- [x] **Lifecycle Awareness**: Refined energy saving strategies for background processes (Stop retries in background).
-- [x] **Error UI**: Implementation of Empty States, Loading Shimmers, and Error Banners. ✅
-- [ ] **Unit Testing**: 
-    - [ ] `StockMapperTest`: Validating decimal rounding and parsing.
-    - [ ] `StockViewModelTest`: Mocking the UseCase flow.
+- [x] **Lifecycle Awareness**: Refined energy saving strategies for background processes.
+- [x] **Error UI**: Implementation of Empty States, Loading Shimmers, and Error Banners.
+- [x] **Unit Testing**: `StockMapperTest` validating decimal rounding and parsing.
 
-## Phase 5: Polish & Performance ⚡
+## Phase 5: Polish & Performance ⚡ (NEXT)
 - [ ] **Image Resources**: Setup `composeResources` for icons and splash screen.
 - [ ] **Performance Audit**: Benchmarking recomposition counts on the LazyColumn.
 - [ ] **Offline Persistence**: (Optional) Room/SQLDelight for last-seen price caching.

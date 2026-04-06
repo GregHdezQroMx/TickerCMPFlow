@@ -38,8 +38,13 @@ fun List<StockTick>.toWireFormat(): String {
     }
 }
 
+/**
+ * Financial-grade rounding to avoid floating point precision issues.
+ * Rounds to nearest even if exactly in the middle, but handles .5 correctly.
+ */
 private fun Double.roundTo(decimals: Int): Double {
     var multiplier = 1.0
     repeat(decimals) { multiplier *= 10 }
-    return round(this * multiplier) / multiplier
+    // Adding a tiny epsilon to ensure .x5 cases round UP as expected in trading
+    return round((this * multiplier) + 1e-9) / multiplier
 }

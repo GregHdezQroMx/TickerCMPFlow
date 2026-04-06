@@ -31,7 +31,7 @@
 ## Phase 4: Hardening & Resilience 🛡️
 - [x] **Connection Management**: Auto-reconnect logic for WebSocket failures.
 - [x] **Lifecycle Awareness**: Refined energy saving strategies for background processes (Stop retries in background).
-- [ ] **Error UI**: Implementation of Empty States, Loading Shimmers, and Error Banners.
+- [x] **Error UI**: Implementation of Empty States, Loading Shimmers, and Error Banners. ✅
 - [ ] **Unit Testing**: 
     - [ ] `StockMapperTest`: Validating decimal rounding and parsing.
     - [ ] `StockViewModelTest`: Mocking the UseCase flow.

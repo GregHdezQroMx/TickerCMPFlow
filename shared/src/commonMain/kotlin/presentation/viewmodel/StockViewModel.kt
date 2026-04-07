@@ -18,7 +18,6 @@ import kotlinx.coroutines.launch
 
 /**
  * UI-Stable wrapper for the list of stocks.
- * Prevents global recomposition of LazyColumn when the list reference updates.
  */
 @Immutable
 data class StockListState(
@@ -27,7 +26,6 @@ data class StockListState(
 
 /**
  * Data class to combine Tick data with Metadata for the UI.
- * Marked as @Stable to allow Compose to skip recomposition if data hasn't changed.
  */
 @Stable
 data class StockItemState(
@@ -47,15 +45,14 @@ class StockViewModel(
 
     private val tag = this::class.simpleName ?: "StockViewModel"
 
+    // Consuming global ThemeManager
+    val isDarkTheme = ThemeManager.isDarkTheme
+
     val isConnected: StateFlow<Boolean> = observeConnectionStatusUseCase()
     val isTracking: StateFlow<Boolean> = toggleStockTrackingUseCase.isTrackingEnabled
     val isReconnecting: StateFlow<Boolean> = toggleStockTrackingUseCase.isReconnecting
     val isPersistentError: StateFlow<Boolean> = toggleStockTrackingUseCase.isPersistentError
 
-    /**
-     * Enhanced stream: Maps raw ticks to a UI state including company names.
-     * Wrapped in StockListState for maximum stability.
-     */
     val stockListState: StateFlow<StockListState> = getStockUpdatesUseCase()
         .map { ticks ->
             val items = ticks.map { tick ->
@@ -78,6 +75,10 @@ class StockViewModel(
         }
     }
 
+    fun toggleTheme() {
+        ThemeManager.toggleTheme()
+    }
+
     fun onResume() {
         viewModelScope.launch {
             Napier.d(tag = tag) { "🚀 App Resumed: Syncing WebSocket state..." }
@@ -86,7 +87,9 @@ class StockViewModel(
     }
 
     fun onStop() {
-        Napier.w(tag = tag) { "🔋 App Backgrounded: Pausing WebSocket physically" }
-        toggleStockTrackingUseCase.pausePhysically()
+        viewModelScope.launch {
+            Napier.w(tag = tag) { "🔋 App Backgrounded: Pausing WebSocket physically" }
+            toggleStockTrackingUseCase.pausePhysically()
+        }
     }
 }

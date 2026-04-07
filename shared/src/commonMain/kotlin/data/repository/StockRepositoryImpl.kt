@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -43,6 +44,9 @@ class StockRepositoryImpl(
     private var connectionJob: Job? = null
     private val connectionMutex = Mutex()
     
+    // Internal scope for the repository lifecycle
+    private val repoScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    
     private val _stockTicks = MutableStateFlow<List<StockTick>>(emptyList())
     private val _isConnected = MutableStateFlow(false)
 
@@ -51,16 +55,15 @@ class StockRepositoryImpl(
     override fun observeStockUpdates(): Flow<List<StockTick>> = _stockTicks.asStateFlow()
 
     override suspend fun connect(): Boolean = connectionMutex.withLock {
-        if (_isConnected.value) return true
+        if (_isConnected.value && session != null) return true
         
-        // Ensure previous resources are fully cleared before a new attempt
         cleanupInternal()
         
         val host = configProvider.getHost()
         val path = configProvider.getPath()
         val connectionResult = CompletableDeferred<Boolean>()
 
-        connectionJob = CoroutineScope(Dispatchers.IO).launch {
+        connectionJob = repoScope.launch {
             try {
                 client.wss(host = host, path = path) {
                     session = this
@@ -70,18 +73,20 @@ class StockRepositoryImpl(
                     
                     try {
                         receiveEcho()
+                    } catch (e: Exception) {
+                        Napier.e(tag = TAG) { "📉 Receiver Loop Error: ${e.message}" }
                     } finally {
                         _isConnected.value = false
                         session = null
                     }
                 }
             } catch (e: Exception) {
-                Napier.e(tag = TAG) { "❌ WSS Error: ${e.message}" }
+                Napier.e(tag = TAG) { "❌ WSS Connection Error: ${e.message}" }
                 if (!connectionResult.isCompleted) connectionResult.complete(false)
             } finally {
                 _isConnected.value = false
                 session = null
-                Napier.w(tag = TAG) { "🔌 WebSocket Disconnected" }
+                Napier.w(tag = TAG) { "🔌 WebSocket Closed" }
             }
         }
 
@@ -91,16 +96,18 @@ class StockRepositoryImpl(
             }
         } catch (e: Exception) {
             Napier.e(tag = TAG) { "⏳ Connection Timeout" }
-            disconnect()
+            // Manual cleanup on timeout
+            connectionJob?.cancel()
             false
         }
     }
 
     override fun disconnect() {
-        CoroutineScope(Dispatchers.IO).launch {
+        // Disconnect must be immediate and synchronous in state
+        _isConnected.value = false
+        repoScope.launch {
             connectionMutex.withLock {
                 cleanupInternal()
-                _isConnected.value = false
             }
         }
     }
@@ -119,23 +126,18 @@ class StockRepositoryImpl(
                 currentSession.send(Frame.Text(rawData))
             }
         } catch (e: Exception) {
-            Napier.e(tag = TAG) { "⚠️ Failed to send ticks: ${e.message}" }
+            Napier.e(tag = TAG) { "⚠️ Send Error: ${e.message}" }
             _isConnected.value = false
         }
     }
 
     private suspend fun receiveEcho() {
-        try {
-            session?.incoming?.receiveAsFlow()?.collect { frame ->
-                if (frame is Frame.Text) {
-                    val rawText = frame.readText()
-                    val ticks = rawText.toStockTicks()
-                    _stockTicks.update { ticks }
-                }
+        session?.incoming?.receiveAsFlow()?.collect { frame ->
+            if (frame is Frame.Text) {
+                val rawText = frame.readText()
+                val ticks = rawText.toStockTicks()
+                _stockTicks.update { ticks }
             }
-        } catch (e: Exception) {
-            Napier.e(tag = TAG) { "📉 Receiver Error: ${e.message}" }
-            throw e
         }
     }
 }

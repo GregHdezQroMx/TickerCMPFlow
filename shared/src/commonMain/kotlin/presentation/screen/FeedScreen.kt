@@ -1,10 +1,12 @@
 package presentation.screen
 
+import androidx.compose.animation.Animatable
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -16,25 +18,32 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import io.github.aakira.napier.Napier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import presentation.component.ConnectionBadge
 import presentation.component.EmptyFeedState
 import presentation.component.NetworkErrorBanner
@@ -54,12 +63,13 @@ fun FeedScreen(
     animatedVisibilityScope: AnimatedContentScope,
     onNavigateToDetail: (String) -> Unit
 ) {
-    // Phase 5 Performance: Use the immutable wrapped state
-    val listState by viewModel.stockListState.collectAsState()
-    val isConnected by viewModel.isConnected.collectAsState()
-    val isTracking by viewModel.isTracking.collectAsState()
-    val isReconnecting by viewModel.isReconnecting.collectAsState()
-    val isPersistentError by viewModel.isPersistentError.collectAsState()
+    // Correct Lifecycle-Aware Flow Collection
+    val listState by viewModel.stockListState.collectAsStateWithLifecycle()
+    val isConnected by viewModel.isConnected.collectAsStateWithLifecycle()
+    val isTracking by viewModel.isTracking.collectAsStateWithLifecycle()
+    val isReconnecting by viewModel.isReconnecting.collectAsStateWithLifecycle()
+    val isPersistentError by viewModel.isPersistentError.collectAsStateWithLifecycle()
+    val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
 
     FeedContent(
         listState = listState,
@@ -67,7 +77,9 @@ fun FeedScreen(
         isTracking = isTracking,
         isReconnecting = isReconnecting,
         isPersistentError = isPersistentError,
+        isDarkTheme = isDarkTheme,
         onToggleTracking = { viewModel.toggleTracking() },
+        onToggleTheme = { viewModel.toggleTheme() },
         sharedTransitionScope = sharedTransitionScope,
         animatedVisibilityScope = animatedVisibilityScope,
         onNavigateToDetail = onNavigateToDetail
@@ -82,7 +94,9 @@ fun FeedContent(
     isTracking: Boolean,
     isReconnecting: Boolean,
     isPersistentError: Boolean,
+    isDarkTheme: Boolean,
     onToggleTracking: () -> Unit,
+    onToggleTheme: () -> Unit,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedContentScope,
     onNavigateToDetail: (String) -> Unit
@@ -98,17 +112,26 @@ fun FeedContent(
                     ) 
                 },
                 navigationIcon = {
-                    ConnectionBadge(
-                        isConnected = isConnected,
-                        isReconnecting = isReconnecting,
-                        modifier = Modifier.padding(start = 16.dp)
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        ConnectionBadge(
+                            isConnected = isConnected,
+                            isReconnecting = isReconnecting,
+                            modifier = Modifier.padding(start = 16.dp)
+                        )
+                        IconButton(onClick = onToggleTheme) {
+                            Icon(
+                                imageVector = if (isDarkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
+                                contentDescription = "Toggle Theme",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
                 },
                 actions = {
                     Switch(
                         checked = isTracking,
                         onCheckedChange = { onToggleTracking() },
-                        modifier = Modifier.padding(end = 16.dp)
+                        modifier = Modifier.padding(end = 16.dp).testTag("tracking_switch")
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -128,7 +151,6 @@ fun FeedContent(
             when {
                 isTracking -> {
                     if (listState.items.isNotEmpty()) {
-                        // PHASE 5: UI Stability Wrapper Call
                         StockList(
                             items = listState.items,
                             sharedTransitionScope = sharedTransitionScope,
@@ -137,7 +159,7 @@ fun FeedContent(
                         )
                     } else {
                         LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier.fillMaxSize().testTag("shimmer_list"),
                             contentPadding = PaddingValues(16.dp),
                             verticalArrangement = Arrangement.spacedBy(16.dp),
                             userScrollEnabled = false
@@ -150,19 +172,13 @@ fun FeedContent(
                 }
                 
                 else -> {
-                    EmptyFeedState()
+                    EmptyFeedState(modifier = Modifier.testTag("empty_state"))
                 }
             }
         }
     }
 }
 
-/**
- * PHASE 5: STABILITY WRAPPER
- * Extracts the LazyColumn to a standalone Composable.
- * Since 'items' is now part of an @Immutable StockListState,
- * Compose can officially SKIP recomposing this entire list if no data changed.
- */
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun StockList(
@@ -172,7 +188,7 @@ private fun StockList(
     onNavigateToDetail: (String) -> Unit
 ) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().testTag("stock_list"),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -200,13 +216,21 @@ fun StockItem(
     animatedVisibilityScope: AnimatedContentScope,
     modifier: Modifier = Modifier
 ) {
-    // Performance Tracking
-    val recompositionCount = remember { mutableListOf<Int>() }
-    SideEffect {
-        recompositionCount.add(1)
-        if (recompositionCount.size % 5 == 0) {
-            Napier.v(tag = "PERF") { "⚡ Item [${item.tick.symbol}] recomposed ${recompositionCount.size} times" }
+    val defaultColor = MaterialTheme.colorScheme.onSurface
+    val priceColor = remember { Animatable(defaultColor) }
+    var prevPrice by remember { mutableStateOf<Double?>(null) }
+
+    LaunchedEffect(item.tick.price) {
+        val currentPrice = item.tick.price
+        val oldPrice = prevPrice
+        
+        if (oldPrice != null && currentPrice != oldPrice) {
+            val flashColor = if (currentPrice > oldPrice) GreenBullish else RedBearish
+            // Elegant text pulse animation
+            priceColor.snapTo(flashColor)
+            priceColor.animateTo(defaultColor, tween(1000))
         }
+        prevPrice = currentPrice
     }
 
     with(sharedTransitionScope) {
@@ -240,6 +264,7 @@ fun StockItem(
                     Text(
                         text = "$${item.tick.price}",
                         style = MaterialTheme.typography.labelMedium,
+                        color = priceColor.value, // APPLIED ANIMATION TO TEXT COLOR
                         modifier = Modifier.sharedElement(
                             rememberSharedContentState(key = "price-${item.tick.symbol}"),
                             animatedVisibilityScope = animatedVisibilityScope
@@ -269,7 +294,9 @@ fun FeedContentPreview() {
                     isTracking = true,
                     isReconnecting = false,
                     isPersistentError = false,
+                    isDarkTheme = true,
                     onToggleTracking = {},
+                    onToggleTheme = {},
                     sharedTransitionScope = this@SharedTransitionLayout,
                     animatedVisibilityScope = this@AnimatedContent,
                     onNavigateToDetail = {}

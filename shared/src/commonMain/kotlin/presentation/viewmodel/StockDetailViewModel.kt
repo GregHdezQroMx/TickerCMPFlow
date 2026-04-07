@@ -20,7 +20,6 @@ import kotlin.random.Random
 
 /**
  * ViewModel for the Symbol Details Screen.
- * Manages live connection status, metadata, and dynamic candlestick history.
  */
 class StockDetailViewModel(
     private val symbol: String,
@@ -30,8 +29,11 @@ class StockDetailViewModel(
     private val observeConnectionStatusUseCase: ObserveConnectionStatusUseCase
 ) : ViewModel() {
 
+    // Global Theme Management
+    val isDarkTheme = ThemeManager.isDarkTheme
+
     /**
-     * Physical connection status (🟢 Connected / 🔴 Disconnected).
+     * Physical connection status.
      */
     val isConnected: StateFlow<Boolean> = observeConnectionStatusUseCase()
 
@@ -41,12 +43,12 @@ class StockDetailViewModel(
     val isTracking: StateFlow<Boolean> = toggleStockTrackingUseCase.isTrackingEnabled
 
     /**
-     * Active reconnection attempts (🟠 Reconnecting).
+     * Active reconnection attempts.
      */
     val isReconnecting: StateFlow<Boolean> = toggleStockTrackingUseCase.isReconnecting
 
     /**
-     * Persistent error detection (🚨 Persistent Issue).
+     * Persistent error detection.
      */
     val isPersistentError: StateFlow<Boolean> = toggleStockTrackingUseCase.isPersistentError
 
@@ -57,6 +59,10 @@ class StockDetailViewModel(
 
     init {
         generateInitialMockHistory()
+        // DEEP LINK SYNC: Ensure tracking resumes if enabled when navigating via Deep Link
+        viewModelScope.launch {
+            toggleStockTrackingUseCase.resumeIfEnabled()
+        }
     }
 
     val stockTick: StateFlow<StockTick?> = getStockDetailUseCase(symbol)
@@ -71,6 +77,10 @@ class StockDetailViewModel(
         viewModelScope.launch {
             toggleStockTrackingUseCase()
         }
+    }
+
+    fun toggleTheme() {
+        ThemeManager.toggleTheme()
     }
 
     private fun generateInitialMockHistory() {

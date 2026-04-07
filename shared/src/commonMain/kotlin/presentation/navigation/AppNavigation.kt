@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navDeepLink
 import androidx.navigation.toRoute
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -36,7 +37,12 @@ fun AppNavigation() {
                 )
             }
 
-            composable<Route.Details> { backStackEntry ->
+            composable<Route.Details>(
+                // BONUS: Binding the Deep Link to the Type-Safe route
+                deepLinks = listOf(
+                    navDeepLink<Route.Details>(basePath = "stocks://symbol")
+                )
+            ) { backStackEntry ->
                 val route = backStackEntry.toRoute<Route.Details>()
                 val viewModel = koinViewModel<StockDetailViewModel> { 
                     parametersOf(route.symbol) 

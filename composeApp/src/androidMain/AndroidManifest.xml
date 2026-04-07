@@ -17,8 +17,16 @@
             android:theme="@style/Theme.App.Starting">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- BONUS: Deep Link Configuration -->
+            <intent-filter android:label="@string/app_name">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <!-- stocks://symbol/{symbol} -->
+                <data android:scheme="stocks" android:host="symbol" />
             </intent-filter>
         </activity>
     </application>

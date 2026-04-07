@@ -1,5 +1,6 @@
 package presentation.screen
 
+import androidx.compose.animation.Animatable
 import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -8,6 +9,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,10 +20,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -36,7 +42,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,7 +50,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import domain.model.Candle
 import domain.model.StockMetadata
 import kotlinx.coroutines.delay
@@ -63,23 +70,51 @@ fun DetailScreen(
     animatedVisibilityScope: AnimatedContentScope,
     onBack: () -> Unit
 ) {
-    val tick by viewModel.stockTick.collectAsState()
-    val isTracking by viewModel.isTracking.collectAsState()
-    val isConnected by viewModel.isConnected.collectAsState()
-    val isReconnecting by viewModel.isReconnecting.collectAsState()
-    val isPersistentError by viewModel.isPersistentError.collectAsState()
-    val history by viewModel.history.collectAsState()
+    // Phase 5 Bonus: Lifecycle-aware collection
+    val tick by viewModel.stockTick.collectAsStateWithLifecycle()
+    val isTracking by viewModel.isTracking.collectAsStateWithLifecycle()
+    val isConnected by viewModel.isConnected.collectAsStateWithLifecycle()
+    val isReconnecting by viewModel.isReconnecting.collectAsStateWithLifecycle()
+    val isPersistentError by viewModel.isPersistentError.collectAsStateWithLifecycle()
+    val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
+    val history by viewModel.history.collectAsStateWithLifecycle()
+    
     val metadata = viewModel.metadata
     val scrollState = rememberScrollState()
+
+    // BONUS: Elegant Text-Only Price Flashing (1s duration)
+    val defaultColor = MaterialTheme.colorScheme.onSurface
+    val priceColor = remember { Animatable(defaultColor) }
+    var prevPrice by remember { mutableStateOf<Double?>(null) }
+
+    LaunchedEffect(tick?.price) {
+        val currentPrice = tick?.price ?: 0.0
+        val oldPrice = prevPrice
+        if (oldPrice != null && currentPrice != 0.0 && currentPrice != oldPrice) {
+            val flashColor = if (currentPrice > oldPrice) GreenBullish else RedBearish
+            priceColor.snapTo(flashColor)
+            priceColor.animateTo(defaultColor, tween(1000))
+        }
+        prevPrice = currentPrice
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    ConnectionBadge(
-                        isConnected = isConnected,
-                        isReconnecting = isReconnecting
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        ConnectionBadge(
+                            isConnected = isConnected,
+                            isReconnecting = isReconnecting
+                        )
+                        IconButton(onClick = { viewModel.toggleTheme() }) {
+                            Icon(
+                                imageVector = if (isDarkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
+                                contentDescription = "Toggle Theme",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -130,7 +165,6 @@ fun DetailScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Global Resilience Banner with Persistent Error Support
             NetworkErrorBanner(
                 isVisible = isTracking && (!isConnected || isReconnecting),
                 isReconnecting = isReconnecting,
@@ -171,6 +205,7 @@ fun DetailScreen(
                                 Text(
                                     text = "$${it.price}",
                                     style = MaterialTheme.typography.headlineMedium,
+                                    color = priceColor.value, // APPLIED ANIMATION TO TEXT
                                     modifier = Modifier.sharedElement(
                                         rememberSharedContentState(key = "price-${metadata.symbol}"),
                                         animatedVisibilityScope = animatedVisibilityScope

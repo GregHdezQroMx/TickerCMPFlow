@@ -5,7 +5,7 @@ plugins {
     alias(libs.plugins.androidLibrary)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.composeMultiplatform)
-    alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.compose.compiler)
 }
 
 kotlin {
@@ -67,6 +67,22 @@ kotlin {
                 implementation(libs.compose.uiTooling)
             }
         }
+
+        val androidUnitTest by getting {
+            dependencies {
+                implementation(libs.kotlin.testJunit)
+                implementation(libs.junit)
+            }
+        }
+
+        // CORRECT SOURCE SET FOR UI TESTING IN KMP
+        val androidInstrumentedTest by getting {
+            dependencies {
+                implementation(libs.androidx.testExt.junit)
+                implementation(libs.androidx.espresso.core)
+                implementation(libs.compose.ui.test.junit4)
+            }
+        }
         
         val iosMain by creating {
             dependsOn(commonMain)
@@ -86,6 +102,7 @@ android {
 
     defaultConfig {
         minSdk = libs.versions.android.minSdk.get().toInt()
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     compileOptions {
@@ -96,6 +113,10 @@ android {
     buildFeatures {
         buildConfig = true
     }
+}
+
+dependencies {
+    debugImplementation(libs.compose.ui.test.manifest)
 }
 
 compose.resources {

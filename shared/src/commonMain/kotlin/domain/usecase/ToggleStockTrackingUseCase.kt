@@ -16,6 +16,9 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlin.concurrent.Volatile
 import kotlin.random.Random
 
 /**
@@ -26,6 +29,7 @@ class ToggleStockTrackingUseCase(
     private val repository: StockRepository,
     private val configProvider: ConfigProvider
 ) {
+    private val tag = "ToggleUseCase"
     private val _isTrackingEnabled = MutableStateFlow(false)
     val isTrackingEnabled: StateFlow<Boolean> = _isTrackingEnabled.asStateFlow()
 
@@ -35,17 +39,22 @@ class ToggleStockTrackingUseCase(
     private val _isPersistentError = MutableStateFlow(false)
     val isPersistentError: StateFlow<Boolean> = _isPersistentError.asStateFlow()
 
+    @Volatile
     private var isAppActive = true 
+    private val lifecycleMutex = Mutex()
+    
     private var trackingJob: Job? = null
     private var retryJob: Job? = null
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     private val lastPrices = mutableMapOf<String, Double>()
 
     init {
+        Napier.d(tag = tag) { "🚀 UseCase Initialized" }
         repository.isConnected
             .onEach { connected ->
+                Napier.d(tag = tag) { "🔗 Repository isConnected changed: $connected (Tracking: ${_isTrackingEnabled.value}, Reconnecting: ${_isReconnecting.value}, AppActive: $isAppActive)" }
                 if (!connected && _isTrackingEnabled.value && !_isReconnecting.value && isAppActive) {
-                    Napier.w(tag = "ToggleUseCase") { "⚠️ WebSocket disconnected. Starting auto-retry..." }
+                    Napier.w(tag = tag) { "⚠️ WebSocket disconnected. Starting auto-retry..." }
                     stopPhysicalTracking()
                     startAutoReconnect()
                 }
@@ -54,31 +63,41 @@ class ToggleStockTrackingUseCase(
     }
 
     suspend operator fun invoke() {
-        if (_isTrackingEnabled.value) {
-            stop()
-        } else {
-            start()
+        lifecycleMutex.withLock {
+            Napier.d(tag = tag) { "👇 Invoke called. Current tracking enabled: ${_isTrackingEnabled.value}" }
+            if (_isTrackingEnabled.value) {
+                stop()
+            } else {
+                start()
+            }
         }
     }
 
-    suspend fun resumeIfEnabled() {
+    suspend fun resumeIfEnabled() = lifecycleMutex.withLock {
         isAppActive = true
-        if (_isTrackingEnabled.value && !repository.isConnected.value) {
-            Napier.d(tag = "ToggleUseCase") { "🔼 App Resumed: Restoring connection with safety delay..." }
-            delay(500) 
-            startPhysicalTracking()
+        Napier.d(tag = tag) { "🔼 resumeIfEnabled called. TrackingEnabled: ${_isTrackingEnabled.value}, RepoConnected: ${repository.isConnected.value}" }
+        if (_isTrackingEnabled.value) {
+            val needsStart = trackingJob?.isActive != true && retryJob?.isActive != true
+            if (needsStart) {
+                Napier.i(tag = tag) { "🔄 Forcing reconnection after resume/deep link." }
+                val success = startPhysicalTracking()
+                if (!success) {
+                    startAutoReconnect()
+                }
+            }
         }
     }
 
-    fun pausePhysically() {
+    suspend fun pausePhysically() = lifecycleMutex.withLock {
         isAppActive = false
-        Napier.w(tag = "ToggleUseCase") { "🔽 App Backgrounded: Silencing all network activity." }
+        Napier.w(tag = tag) { "🔽 pausePhysically called. TrackingEnabled: ${_isTrackingEnabled.value}" }
         stopPhysicalTracking()
         retryJob?.cancel() 
         _isReconnecting.value = false
     }
 
     private suspend fun start() {
+        Napier.d(tag = tag) { "🚀 Starting tracking engine..." }
         _isTrackingEnabled.value = true
         _isPersistentError.value = false
         val success = startPhysicalTracking()
@@ -87,7 +106,8 @@ class ToggleStockTrackingUseCase(
         }
     }
 
-    private fun stop() {
+    private suspend fun stop() {
+        Napier.d(tag = tag) { "🛑 Stopping tracking engine..." }
         _isTrackingEnabled.value = false
         _isReconnecting.value = false
         _isPersistentError.value = false
@@ -106,19 +126,18 @@ class ToggleStockTrackingUseCase(
             while (isActive && _isTrackingEnabled.value && isAppActive) {
                 totalAttempts++
                 
-                // Tech Lead Note: Flag persistent error after 30s of total failure (Attempt #5)
                 if (totalAttempts >= 5) {
                     _isPersistentError.value = true
-                    Napier.e(tag = "ToggleUseCase") { "🚨 Persistent connection error detected (Attempt #$totalAttempts)." }
+                    Napier.e(tag = tag) { "🚨 Persistent connection error detected (Attempt #$totalAttempts)." }
                 }
 
-                Napier.d(tag = "ToggleUseCase") { "🔄 Retry #$totalAttempts in ${delayMs}ms..." }
+                Napier.d(tag = tag) { "🔄 Retry #$totalAttempts in ${delayMs}ms..." }
                 delay(delayMs)
                 
                 if (startPhysicalTracking()) {
                     _isReconnecting.value = false
                     _isPersistentError.value = false
-                    Napier.i(tag = "ToggleUseCase") { "✅ Auto-reconnect successful after $totalAttempts attempts." }
+                    Napier.i(tag = tag) { "✅ Auto-reconnect successful after $totalAttempts attempts." }
                     return@launch
                 }
                 
@@ -135,6 +154,7 @@ class ToggleStockTrackingUseCase(
         if (!connected) return false
         
         val symbols = configProvider.getSymbols()
+        Napier.d(tag = tag) { "📡 Starting ticker loop for ${symbols.size} symbols" }
 
         trackingJob = scope.launch {
             while (isActive) {
@@ -144,12 +164,7 @@ class ToggleStockTrackingUseCase(
                     val newPrice = currentBase * (1 + (changePercent / 100))
                     lastPrices[symbol] = newPrice
 
-                    StockTick(
-                        symbol = symbol,
-                        price = newPrice,
-                        changePercentage = changePercent,
-                        timestamp = 0L 
-                    )
+                    StockTick(symbol, newPrice, changePercent, 0L)
                 }
                 repository.sendTicks(mockTicks)
                 delay(2000)

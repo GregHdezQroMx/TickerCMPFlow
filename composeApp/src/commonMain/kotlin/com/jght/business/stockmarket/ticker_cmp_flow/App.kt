@@ -2,6 +2,8 @@ package com.jght.business.stockmarket.ticker_cmp_flow
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import org.koin.compose.viewmodel.koinViewModel
@@ -11,13 +13,15 @@ import presentation.viewmodel.StockViewModel
 
 @Composable
 fun App() {
-    // 1. Aplicamos nuestro Design System OLED (Fintech Style)
-    TickerCMPFlowTheme {
-        
-        // 2. Inyectamos el ViewModel de forma limpia (Singleton compartido)
-        val viewModel = koinViewModel<StockViewModel>()
+    val viewModel = koinViewModel<StockViewModel>()
+    val isDarkTheme by viewModel.isDarkTheme.collectAsState()
 
-        // 3. Gestión de Ciclo de Vida (Opción B: Ahorro de Energía)
+    TickerCMPFlowTheme(darkTheme = isDarkTheme) {
+        
+        // GLOBAL LIFECYCLE OBSERVER
+        // This ensures that the Tracking Engine (UseCase Singleton)
+        // is always aware of the App's physical state, solving the 
+        // Deep Link from Background inconsistency.
         LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
             viewModel.onResume()
         }
@@ -26,12 +30,10 @@ fun App() {
             viewModel.onStop()
         }
 
-        // 4. Iniciamos el tracking automáticamente al abrir la App
         LaunchedEffect(Unit) {
             viewModel.toggleTracking()
         }
 
-        // 5. Motor de Navegación con Shared Elements
         AppNavigation()
     }
 }

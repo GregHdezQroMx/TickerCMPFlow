@@ -1,14 +1,13 @@
 package domain.model
 
+import androidx.compose.runtime.Immutable
 import kotlinx.serialization.Serializable
 
 /**
  * Represents a real-time price update for a specific asset.
- * @property symbol The ticker identifier (e.g., AAPL, BTC).
- * @property price The current market value in USD.
- * @property changePercentage The variation compared to the previous tick.
- * @property timestamp The exact time the tick was generated.
+ * Marked as @Immutable to optimize Compose recomposition during high-frequency updates.
  */
+@Immutable
 @Serializable
 data class StockTick(
     val symbol: String,
@@ -16,5 +15,3 @@ data class StockTick(
     val changePercentage: Double,
     val timestamp: Long
 )
-
-

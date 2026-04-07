@@ -1,5 +1,7 @@
 package presentation.viewmodel
 
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import domain.model.StockTick
@@ -15,8 +17,19 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
- * Data class to combine Tick data with Metadata for the UI.
+ * UI-Stable wrapper for the list of stocks.
+ * Prevents global recomposition of LazyColumn when the list reference updates.
  */
+@Immutable
+data class StockListState(
+    val items: List<StockItemState> = emptyList()
+)
+
+/**
+ * Data class to combine Tick data with Metadata for the UI.
+ * Marked as @Stable to allow Compose to skip recomposition if data hasn't changed.
+ */
+@Stable
 data class StockItemState(
     val tick: StockTick,
     val companyName: String
@@ -41,20 +54,22 @@ class StockViewModel(
 
     /**
      * Enhanced stream: Maps raw ticks to a UI state including company names.
+     * Wrapped in StockListState for maximum stability.
      */
-    val stockItems: StateFlow<List<StockItemState>> = getStockUpdatesUseCase()
+    val stockListState: StateFlow<StockListState> = getStockUpdatesUseCase()
         .map { ticks ->
-            ticks.map { tick ->
+            val items = ticks.map { tick ->
                 StockItemState(
                     tick = tick,
                     companyName = getStockMetadataUseCase(tick.symbol).name
                 )
             }
+            StockListState(items)
         }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
+            initialValue = StockListState()
         )
 
     fun toggleTracking() {

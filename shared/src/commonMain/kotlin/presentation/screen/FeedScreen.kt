@@ -26,12 +26,15 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import io.github.aakira.napier.Napier
 import presentation.component.ConnectionBadge
 import presentation.component.EmptyFeedState
 import presentation.component.NetworkErrorBanner
@@ -40,6 +43,7 @@ import presentation.theme.GreenBullish
 import presentation.theme.RedBearish
 import presentation.theme.TickerCMPFlowTheme
 import presentation.viewmodel.StockItemState
+import presentation.viewmodel.StockListState
 import presentation.viewmodel.StockViewModel
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -50,14 +54,15 @@ fun FeedScreen(
     animatedVisibilityScope: AnimatedContentScope,
     onNavigateToDetail: (String) -> Unit
 ) {
-    val items by viewModel.stockItems.collectAsState()
+    // Phase 5 Performance: Use the immutable wrapped state
+    val listState by viewModel.stockListState.collectAsState()
     val isConnected by viewModel.isConnected.collectAsState()
     val isTracking by viewModel.isTracking.collectAsState()
     val isReconnecting by viewModel.isReconnecting.collectAsState()
     val isPersistentError by viewModel.isPersistentError.collectAsState()
 
     FeedContent(
-        items = items,
+        listState = listState,
         isConnected = isConnected,
         isTracking = isTracking,
         isReconnecting = isReconnecting,
@@ -72,7 +77,7 @@ fun FeedScreen(
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun FeedContent(
-    items: List<StockItemState>,
+    listState: StockListState,
     isConnected: Boolean,
     isTracking: Boolean,
     isReconnecting: Boolean,
@@ -114,33 +119,22 @@ fun FeedContent(
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            // Error Banner: Informational Layer (with Persistent Error support)
             NetworkErrorBanner(
                 isVisible = isTracking && (!isConnected || isReconnecting),
                 isReconnecting = isReconnecting,
                 isPersistentError = isPersistentError
             )
 
-            // Content Switching
             when {
                 isTracking -> {
-                    if (items.isNotEmpty()) {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            items(items, key = { it.tick.symbol }) { item ->
-                                StockItem(
-                                    item = item,
-                                    sharedTransitionScope = sharedTransitionScope,
-                                    animatedVisibilityScope = animatedVisibilityScope,
-                                    modifier = Modifier
-                                        .animateItem() 
-                                        .clickable { onNavigateToDetail(item.tick.symbol) }
-                                )
-                            }
-                        }
+                    if (listState.items.isNotEmpty()) {
+                        // PHASE 5: UI Stability Wrapper Call
+                        StockList(
+                            items = listState.items,
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            onNavigateToDetail = onNavigateToDetail
+                        )
                     } else {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
@@ -163,6 +157,41 @@ fun FeedContent(
     }
 }
 
+/**
+ * PHASE 5: STABILITY WRAPPER
+ * Extracts the LazyColumn to a standalone Composable.
+ * Since 'items' is now part of an @Immutable StockListState,
+ * Compose can officially SKIP recomposing this entire list if no data changed.
+ */
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+private fun StockList(
+    items: List<StockItemState>,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedContentScope,
+    onNavigateToDetail: (String) -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        items(
+            items = items, 
+            key = { it.tick.symbol } 
+        ) { item ->
+            StockItem(
+                item = item,
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
+                modifier = Modifier
+                    .animateItem() 
+                    .clickable { onNavigateToDetail(item.tick.symbol) }
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun StockItem(
@@ -171,6 +200,15 @@ fun StockItem(
     animatedVisibilityScope: AnimatedContentScope,
     modifier: Modifier = Modifier
 ) {
+    // Performance Tracking
+    val recompositionCount = remember { mutableListOf<Int>() }
+    SideEffect {
+        recompositionCount.add(1)
+        if (recompositionCount.size % 5 == 0) {
+            Napier.v(tag = "PERF") { "⚡ Item [${item.tick.symbol}] recomposed ${recompositionCount.size} times" }
+        }
+    }
+
     with(sharedTransitionScope) {
         Card(
             modifier = modifier.fillMaxWidth(),
@@ -226,7 +264,7 @@ fun FeedContentPreview() {
         SharedTransitionLayout {
             AnimatedContent(targetState = true) { _ ->
                 FeedContent(
-                    items = emptyList(),
+                    listState = StockListState(),
                     isConnected = true,
                     isTracking = true,
                     isReconnecting = false,

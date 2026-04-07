@@ -36,7 +36,7 @@
 
 ## Phase 5: Polish & Performance ⚡
 - [x] **Image Resources**: Setup `composeResources` for icons and splash screen. ✅
-- [ ] **Performance Audit**: Benchmarking recomposition counts on the LazyColumn.
+- [x] **Performance Audit**: Benchmarking recomposition counts on the LazyColumn. ✅
 - [ ] **Offline Persistence**: (Optional) Room/SQLDelight for last-seen price caching.
 - [ ] *(Optional)* **Builds**: Release APK for Android / XCode config for iOS.
 - [ ] *(Optional)* **CI/CD**: Simple GitHub Action for build verification.
